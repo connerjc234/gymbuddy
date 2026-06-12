@@ -4,17 +4,16 @@ import sys
 
 from PyQt6.QtWidgets import QApplication
 
-from .ui.main_window import MainWindow
-from .ui.theme import register_fonts
-
 
 def main() -> None:
-    register_fonts()
-
     app = QApplication(sys.argv)
     app.setApplicationName("GymBuddy")
     app.setOrganizationName("gymbuddy")
 
+    from .ui.theme import register_fonts
+    register_fonts()
+
+    from .ui.main_window import MainWindow
     window = MainWindow()
     window.show()
 

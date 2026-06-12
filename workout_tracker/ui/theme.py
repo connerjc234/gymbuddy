@@ -108,7 +108,6 @@ QPushButton {{
     font-family: '{FONT_BODY}';
     font-size: 13px;
     font-weight: 600;
-    transition: all 0.15s ease;
 }}
 
 QPushButton:hover {{
