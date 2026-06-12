@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -9,6 +9,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from .theme import FONT_DISPLAY
 
 
 class CalendarWidget(QWidget):
@@ -27,60 +29,59 @@ class CalendarWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
+        # Navigation
         nav = QHBoxLayout()
-        self._prev_btn = QPushButton("◀")
-        self._prev_btn.setFixedWidth(36)
+        self._prev_btn = QPushButton("\u25c0")
+        self._prev_btn.setFixedSize(32, 30)
+        self._prev_btn.setStyleSheet(
+            "font-size: 14px; border: none; color: #7a7265; background: transparent;"
+        )
         self._prev_btn.clicked.connect(self._prev_month)
 
         self._month_label = QLabel()
         self._month_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._month_label.setStyleSheet("font-size: 14px; font-weight: 600;")
-
-        self._next_btn = QPushButton("▶")
-        self._next_btn.setFixedWidth(36)
-        self._next_btn.clicked.connect(self._next_month)
-
+        self._month_label.setStyleSheet(
+            f"font-family: '{FONT_DISPLAY}'; font-weight: 600; font-size: 15px; letter-spacing: 0.5px; text-transform: uppercase; color: #1a1612; padding: 4px 0;"
+        )
         nav.addWidget(self._prev_btn)
         nav.addWidget(self._month_label, 1)
+        self._next_btn = QPushButton("\u25b6")
+        self._next_btn.setFixedSize(32, 30)
+        self._next_btn.setStyleSheet(
+            "font-size: 14px; border: none; color: #7a7265; background: transparent;"
+        )
+        self._next_btn.clicked.connect(self._next_month)
         nav.addWidget(self._next_btn)
         layout.addLayout(nav)
 
         self._grid = QGridLayout()
         self._grid.setSpacing(2)
         layout.addLayout(self._grid)
-
         self._update_calendar()
 
     def _update_calendar(self) -> None:
-        while self._grid.count():
-            item = self._grid.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        self._clear_grid()
 
         self._month_label.setText(self._current_date.strftime("%B %Y"))
 
-        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        days = ["M", "T", "W", "T", "F", "S", "S"]
         for i, day in enumerate(days):
             label = QLabel(day)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setStyleSheet(
-                "font-size: 11px; color: #a6adc8; font-weight: 600; padding: 2px;"
+                f"font-family: '{FONT_DISPLAY}'; font-weight: 600; font-size: 10px; color: #a39b8e; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px;"
             )
             self._grid.addWidget(label, 0, i)
 
         first_day = date(self._current_date.year, self._current_date.month, 1)
-        last_day = date(
-            self._current_date.year + 1
-            if self._current_date.month == 12
-            else self._current_date.year,
-            self._current_date.month % 12 + 1,
-            1,
-        )
-        from datetime import timedelta
+        if self._current_date.month == 12:
+            last_day = date(self._current_date.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            last_day = date(
+                self._current_date.year, self._current_date.month + 1, 1
+            ) - timedelta(days=1)
 
-        last_day -= timedelta(days=1)
-
-        start_col = (first_day.weekday()) % 7
+        start_col = first_day.weekday()  # Monday=0
         row = 1
         col = start_col
 
@@ -90,7 +91,7 @@ class CalendarWidget(QWidget):
             btn.setFixedSize(36, 32)
             btn.setStyleSheet(self._day_style(d))
 
-            btn.clicked.connect(lambda checked, dt=d: self._on_day_clicked(dt))
+            btn.clicked.connect(lambda checked=False, dt=d: self._on_day_clicked(dt))
             self._grid.addWidget(btn, row, col)
 
             col += 1
@@ -104,35 +105,41 @@ class CalendarWidget(QWidget):
         has_workout = d in self._workout_dates
         has_goal = d in self._goal_dates
 
-        bg = "#313244"
         if is_selected:
-            bg = "#89b4fa"
+            bg = "#d64550"
+            color = "#ffffff"
+            border = "none"
         elif is_today:
-            bg = "#45475a"
+            bg = "#ffffff"
+            color = "#1a1612"
+            border = "1.5px solid #d64550"
+        else:
+            bg = "transparent"
+            color = "#7a7265"
+            border = "1.5px solid transparent"
 
-        border = "none"
-        if has_goal and has_workout:
-            border = "2px solid #a6e3a1"
+        if has_workout and has_goal:
+            border = "1.5px solid #c4a35a"
         elif has_goal:
-            border = "2px solid #f9e2af"
-        elif has_workout:
-            border = "2px solid #89b4fa"
+            border = "1.5px solid #c4a35a"
+        elif has_workout and not is_selected:
+            border = "1.5px solid #d9d3c8"
 
-        color = "#cdd6f4"
-        if is_selected:
-            color = "#1e1e2e"
+        fw = "600" if (is_today or is_selected) else "400"
 
         return f"""
             QPushButton {{
                 background-color: {bg};
                 color: {color};
                 border: {border};
-                border-radius: 4px;
+                border-radius: 6px;
+                font-family: '{FONT_DISPLAY}';
                 font-size: 12px;
-                font-weight: {"700" if is_today or is_selected else "400"};
+                font-weight: {fw};
             }}
             QPushButton:hover {{
-                background-color: #585b70;
+                background-color: #ece8e0;
+                color: #1a1612;
             }}
         """
 
@@ -158,6 +165,12 @@ class CalendarWidget(QWidget):
             year += 1
         self._current_date = date(year, month, 1)
         self._update_calendar()
+
+    def _clear_grid(self) -> None:
+        while self._grid.count():
+            item = self._grid.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
 
     def set_workout_dates(self, dates: list[date]) -> None:
         self._workout_dates = set(dates)

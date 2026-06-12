@@ -11,7 +11,7 @@ class Config:
     vault_path: str = "/home/conner/Documents/ObsidianVault"
     units: Literal["metric", "imperial"] = "metric"
     default_split: str = "PPL"
-    theme: Literal["dark", "light"] = "dark"
+    theme: Literal["warm", "dark", "light"] = "warm"
     ai_enabled: bool = False
     ai_provider: Literal["openai", "ollama", "local"] = "openai"
 

@@ -1,14 +1,22 @@
-# Workout Tracker
+# GymBuddy
 
-A PyQt6 desktop app for logging workouts and tracking progress, with direct Obsidian vault integration.
+A premium PyQt6 workout tracker with Obsidian vault integration — warm editorial design, distinctive typography, and meticulous attention to detail.
+
+## Aesthetic
+
+- **Palette**: Warm parchment (#f5f2ec), terracotta accent (#d64550), pure white cards
+- **Typography**: Oswald (display headers), Source Sans 3 (body), Playfair Display (accent)
+- **Vibe**: Warm premium editorial — think Nike Training Club meets a refined print magazine
 
 ## Features
 
 - **Daily workout logging** — exercises, sets, reps, weight, RPE
-- **Goal tracking** — set targets with dates (e.g., "Bench 225×5 by Aug 15, 2026")
-- **Obsidian integration** — writes markdown files directly to your vault
-- **Progress visualization** — volume charts, goal progress bars
-- **Dark theme** — consistent with VinylRipper
+- **Goal tracking** — set targets with dates (summer goal: Aug 15, 2026)
+- **Split presets** — Push/Pull/Legs/Upper/Lower/Full Body auto-populate exercises
+- **Exercise library** — manage from GymBuddy, syncs to `Gym/Overview.md`
+- **Obsidian integration** — writes markdown to your vault in real-time
+- **Progress visualization** — volume chart with goal lines, consistency streak, stat cards
+- **Keyboard shortcuts** — Ctrl+N (log), Ctrl+D (delete), Ctrl+T (today), Ctrl+G (goal)
 
 ## Quick Start
 
@@ -22,61 +30,50 @@ python -m workout_tracker.main
 
 ```
 workout_tracker/
-├── main.py                 # Entry point
+├── main.py                 # Entry point (GymBuddy)
 ├── core/
-│   ├── config.py           # Configuration management
-│   ├── models.py           # Data models (Workout, Exercise, Set, Goal)
+│   ├── config.py           # Vault path, units, theme
+│   ├── models.py           # Dataclasses
 │   ├── storage.py          # Obsidian vault read/write
-│   ├── calculator.py       # Volume, 1RM, progression math
-│   └── ai_client.py        # AI integration interface (future)
+│   ├── calculator.py       # 1RM, volume, progression
+│   └── ai_client.py        # AI interface (future)
 └── ui/
-    ├── main_window.py      # Main application window
+    ├── main_window.py      # Main window
     ├── workout_dialog.py   # Log/edit workout
     ├── goal_dialog.py      # Set/edit goals
-    ├── calendar_widget.py  # Custom calendar with workout indicators
-    ├── progress_chart.py   # Progress charts
-    └── theme.py            # Dark theme stylesheet
+    ├── exercise_dialog.py  # Manage exercise library
+    ├── calendar_widget.py  # Custom monthly calendar
+    ├── progress_chart.py   # Volume-over-time chart
+    └── theme.py            # Warm premium theme
 ```
 
 ## Configuration
 
-Config stored at `~/.config/workout-tracker/config.json`:
-
+`~/.config/workout-tracker/config.json`:
 ```json
 {
   "vault_path": "/home/conner/Documents/ObsidianVault",
   "units": "metric",
   "default_split": "PPL",
-  "theme": "dark",
-  "ai_enabled": false,
-  "ai_provider": "openai"
+  "theme": "warm",
+  "ai_enabled": false
 }
 ```
 
-## Obsidian Vault Structure
-
-The app reads/writes to these paths in your vault:
+## Vault Integration
 
 ```
 Gym/
-├── Workouts/
-│   └── 2026-06-11.md       # Daily workout logs
-├── Goals/
-│   └── 2026-08-15-bench-225.md  # Goal tracking
-├── Progress-2026-06.md     # Monthly summaries (appended)
-└── Overview.md             # Split/exercise library (synced)
+├── Workouts/YYYY-MM-DD.md       # Daily logs
+├── Goals/YYYY-MM-DD-name.md     # Goal tracking
+├── Progress-YYYY-MM.md          # Monthly summaries
+└── Overview.md                  # Exercise library
 ```
 
 ## Development
 
 ```bash
-# Format & lint
-ruff check --fix .
-ruff format .
-
-# Type check
+ruff check --fix . && ruff format .
 mypy workout_tracker
-
-# Run tests
 pytest
 ```

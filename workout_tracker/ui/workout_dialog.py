@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ..core.models import Exercise, Set, Workout
+from .theme import FONT_BODY, FONT_DISPLAY
 
 DEFAULT_EXERCISES = [
     "Bench Press",
@@ -152,9 +153,15 @@ class WorkoutDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
 
-        header = QLabel(f"Log Workout — {self._workout_date.strftime('%A, %B %d, %Y')}")
+        header = QLabel("Log Workout")
         header.setObjectName("headerLabel")
         layout.addWidget(header)
+
+        sub_header = QLabel(self._workout_date.strftime("%A, %B %d, %Y"))
+        sub_header.setStyleSheet(
+            f"font-family: '{FONT_BODY}'; font-size: 12px; color: #a39b8e; margin-top: -4px;"
+        )
+        layout.addWidget(sub_header)
 
         info_layout = QHBoxLayout()
         info_layout.addWidget(QLabel("Split:"))
@@ -174,6 +181,27 @@ class WorkoutDialog(QDialog):
         layout.addLayout(info_layout)
 
         exercise_group = QGroupBox("Exercises")
+        exercise_group.setStyleSheet(f"""
+            QGroupBox {{
+                border: 1.5px solid #ece8e0;
+                border-radius: 10px;
+                margin-top: 16px;
+                padding: 16px 12px 8px 12px;
+                font-family: '{FONT_DISPLAY}';
+                font-weight: 600;
+                font-size: 11px;
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+                color: #7a7265;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                padding: 0 10px;
+                background: #f5f2ec;
+                color: #7a7265;
+            }}
+        """)
         exercise_layout = QVBoxLayout(exercise_group)
         self._exercises_widget = ExerciseListWidget(
             self._exercise_library, self._weight_suffix

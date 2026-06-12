@@ -1,16 +1,19 @@
-"""Workout Tracker - Entry point."""
+"""GymBuddy - Workout Tracker."""
 
 import sys
 
 from PyQt6.QtWidgets import QApplication
 
 from .ui.main_window import MainWindow
+from .ui.theme import register_fonts
 
 
 def main() -> None:
+    register_fonts()
+
     app = QApplication(sys.argv)
-    app.setApplicationName("Workout Tracker")
-    app.setOrganizationName("workout-tracker")
+    app.setApplicationName("GymBuddy")
+    app.setOrganizationName("gymbuddy")
 
     window = MainWindow()
     window.show()

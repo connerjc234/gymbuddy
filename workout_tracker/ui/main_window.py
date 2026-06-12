@@ -6,7 +6,6 @@ from PyQt6.QtGui import QAction, QKeySequence
 from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -27,7 +26,7 @@ from .calendar_widget import CalendarWidget
 from .exercise_dialog import ExerciseLibraryDialog
 from .goal_dialog import GoalDialog
 from .progress_chart import ProgressChartWidget
-from .theme import get_stylesheet
+from .theme import FONT_DISPLAY, get_stylesheet
 from .workout_dialog import WorkoutDialog
 
 
@@ -38,49 +37,54 @@ class GoalCard(QFrame):
     def __init__(self, goal: Goal, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._goal = goal
+        self.setObjectName("goalCard")
         self._setup_ui()
 
     def _setup_ui(self) -> None:
-        self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setStyleSheet("""
-            GoalCard {
-                background-color: #181825;
-                border: 1px solid #313244;
-                border-radius: 8px;
-                padding: 12px;
-                margin: 4px;
-            }
-            GoalCard:hover {
-                border-color: #585b70;
+            QFrame#goalCard {
+                background-color: #ffffff;
+                border: 1.5px solid #ece8e0;
+                border-radius: 10px;
+                padding: 14px;
             }
         """)
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(6)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(8)
 
         header = QHBoxLayout()
         name_label = QLabel(self._goal.name)
-        name_label.setStyleSheet("font-size: 14px; font-weight: 700; color: #cdd6f4;")
+        name_label.setStyleSheet(
+            f"font-family: '{FONT_DISPLAY}'; font-weight: 600; font-size: 14px; color: #1a1612; letter-spacing: 0.3px;"
+        )
         header.addWidget(name_label, 1)
 
         days = self._goal.days_remaining
         if days < 0:
-            days_label = QLabel(f"Overdue by {abs(days)}d")
-            days_label.setStyleSheet("color: #f38ba8; font-weight: 600;")
+            days_label = QLabel(f"Overdue {abs(days)}d")
+            days_label.setStyleSheet(
+                "color: #d64550; font-weight: 600; font-size: 11px; font-family: '{FONT_DISPLAY}';"
+            )
         elif days <= 7:
             days_label = QLabel(f"{days}d left")
-            days_label.setStyleSheet("color: #fab387; font-weight: 600;")
+            days_label.setStyleSheet(
+                "color: #c4a35a; font-weight: 600; font-size: 11px; font-family: '{FONT_DISPLAY}';"
+            )
         else:
             days_label = QLabel(f"{days}d left")
-            days_label.setStyleSheet("color: #a6adc8;")
+            days_label.setStyleSheet(
+                "color: #a39b8e; font-size: 11px; font-family: '{FONT_DISPLAY}';"
+            )
         header.addWidget(days_label)
         layout.addLayout(header)
 
         target_text = f"Target: {self._goal.target_value:.0f} {self._goal.metric.value}"
         if self._goal.exercise_name:
-            target_text += f" ({self._goal.exercise_name})"
+            target_text += f" \u00b7 {self._goal.exercise_name}"
         target_label = QLabel(target_text)
-        target_label.setStyleSheet("color: #a6adc8; font-size: 12px;")
+        target_label.setStyleSheet("color: #7a7265; font-size: 12px;")
         layout.addWidget(target_label)
 
         progress_bar = QProgressBar()
@@ -89,23 +93,32 @@ class GoalCard(QFrame):
         progress_bar.setFormat(f"{self._goal.progress_pct:.0f}%")
         if self._goal.is_complete:
             progress_bar.setStyleSheet("""
-                QProgressBar::chunk { background-color: #a6e3a1; }
+                QProgressBar { background: #ece8e0; border: none; border-radius: 4px; height: 6px; }
+                QProgressBar::chunk { background: #4a7c5b; border-radius: 4px; }
             """)
         elif self._goal.is_overdue:
             progress_bar.setStyleSheet("""
-                QProgressBar::chunk { background-color: #f38ba8; }
+                QProgressBar { background: #ece8e0; border: none; border-radius: 4px; height: 6px; }
+                QProgressBar::chunk { background: #d64550; border-radius: 4px; }
+            """)
+        else:
+            progress_bar.setStyleSheet("""
+                QProgressBar { background: #ece8e0; border: none; border-radius: 4px; height: 6px; }
+                QProgressBar::chunk { background: #c4a35a; border-radius: 4px; }
             """)
         layout.addWidget(progress_bar)
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
         edit_btn = QPushButton("Edit")
-        edit_btn.setFixedSize(60, 24)
-        edit_btn.setStyleSheet("font-size: 11px; padding: 2px 8px;")
+        edit_btn.setFixedSize(52, 24)
+        edit_btn.setStyleSheet(
+            "font-size: 11px; padding: 2px 8px; color: #7a7265; border: 1px solid #e3ddd4; border-radius: 4px;"
+        )
         edit_btn.clicked.connect(lambda: self.editRequested.emit(self._goal))
         delete_btn = QPushButton("Del")
         delete_btn.setObjectName("dangerButton")
-        delete_btn.setFixedSize(52, 24)
+        delete_btn.setFixedSize(44, 24)
         delete_btn.setStyleSheet("font-size: 11px; padding: 2px 8px;")
         delete_btn.clicked.connect(lambda: self.deleteRequested.emit(self._goal))
         btn_layout.addWidget(edit_btn)
@@ -117,62 +130,96 @@ class WorkoutSummaryCard(QFrame):
     def __init__(self, workout: Workout, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._workout = workout
+        self.setObjectName("workoutCard")
         self._setup_ui()
 
     def _setup_ui(self) -> None:
-        self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setStyleSheet("""
-            WorkoutSummaryCard {
-                background-color: #181825;
-                border: 1px solid #313244;
-                border-radius: 8px;
-                padding: 10px;
-                margin: 2px;
+            QFrame#workoutCard {
+                background-color: #ffffff;
+                border: 1.5px solid #ece8e0;
+                border-radius: 12px;
+                padding: 16px;
             }
         """)
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(4)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(6)
 
         header = QHBoxLayout()
         date_label = QLabel(self._workout.date.strftime("%A, %b %d"))
-        date_label.setStyleSheet("font-size: 13px; font-weight: 600; color: #89b4fa;")
+        date_label.setStyleSheet(
+            f"font-family: '{FONT_DISPLAY}'; font-weight: 600; font-size: 15px; color: #1a1612; letter-spacing: 0.3px; text-transform: uppercase;"
+        )
         header.addWidget(date_label, 1)
 
         if self._workout.split_day:
             split_label = QLabel(self._workout.split_day)
-            split_label.setStyleSheet("""
-                background-color: #45475a;
-                color: #cdd6f4;
-                padding: 2px 8px;
-                border-radius: 4px;
-                font-size: 11px;
+            split_label.setStyleSheet(f"""
+                font-family: '{FONT_DISPLAY}'; font-weight: 600; font-size: 11px;
+                background-color: #f5f2ec; color: #7a7265;
+                padding: 3px 10px; border-radius: 4px;
+                letter-spacing: 0.3px; text-transform: uppercase;
             """)
             header.addWidget(split_label)
 
         if self._workout.duration_min:
-            dur_label = QLabel(f"{self._workout.duration_min}min")
-            dur_label.setStyleSheet("color: #a6adc8; font-size: 11px;")
+            dur_label = QLabel(f"{self._workout.duration_min}")
+            dur_label.setStyleSheet(
+                f"font-family: '{FONT_DISPLAY}'; font-weight: 600; font-size: 13px; color: #7a7265;"
+            )
+            dur_unit = QLabel("min")
+            dur_unit.setStyleSheet("color: #a39b8e; font-size: 10px; margin-left: 2px;")
             header.addWidget(dur_label)
+            header.addWidget(dur_unit)
 
         layout.addLayout(header)
 
         vol = self._workout.total_volume
         vol_label = QLabel(
-            f"Volume: {vol:.0f} kg · {self._workout.total_sets} sets · {self._workout.exercise_count} exercises"
+            f"{vol:,.0f} kg total  \u00b7  {self._workout.total_sets} working sets  \u00b7  {self._workout.exercise_count} exercises"
         )
-        vol_label.setStyleSheet("color: #a6adc8; font-size: 11px;")
+        vol_label.setStyleSheet("color: #7a7265; font-size: 12px;")
         layout.addWidget(vol_label)
 
         if self._workout.notes:
             notes_label = QLabel(
-                self._workout.notes[:80]
-                + ("..." if len(self._workout.notes) > 80 else "")
+                f"\u201c{self._workout.notes[:80]}{'...' if len(self._workout.notes) > 80 else ''}\u201d"
             )
             notes_label.setStyleSheet(
-                "color: #6c7086; font-size: 11px; font-style: italic;"
+                "color: #a39b8e; font-size: 11px; font-style: italic; padding-top: 2px;"
             )
             layout.addWidget(notes_label)
+
+
+class StatCard(QFrame):
+    def __init__(self, value: str, label: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("statCard")
+        self.setStyleSheet("""
+            QFrame#statCard {
+                background-color: #ffffff;
+                border: 1.5px solid #ece8e0;
+                border-radius: 10px;
+                padding: 12px 16px;
+            }
+        """)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        val_label = QLabel(value)
+        val_label.setStyleSheet(
+            f"font-family: '{FONT_DISPLAY}'; font-weight: 600; font-size: 20px; color: #1a1612; letter-spacing: 0.3px;"
+        )
+        layout.addWidget(val_label)
+
+        lbl = QLabel(label)
+        lbl.setStyleSheet(
+            "color: #a39b8e; font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; padding-top: 2px;"
+        )
+        layout.addWidget(lbl)
 
 
 class MainWindow(QMainWindow):
@@ -189,58 +236,64 @@ class MainWindow(QMainWindow):
         self._load_data()
 
     def _setup_ui(self) -> None:
-        self.setWindowTitle("Workout Tracker")
-        self.setMinimumSize(1000, 700)
-        self.setStyleSheet(get_stylesheet(self._config.theme))
+        self.setWindowTitle("GymBuddy")
+        self.setMinimumSize(1050, 720)
+        self.setStyleSheet(get_stylesheet())
 
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
-        main_layout.setContentsMargins(12, 8, 12, 8)
-        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(20, 16, 20, 16)
+        main_layout.setSpacing(20)
 
+        # ── LEFT PANEL ──
         left_panel = QWidget()
-        left_panel.setMaximumWidth(320)
+        left_panel.setMaximumWidth(300)
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(8)
+        left_layout.setSpacing(12)
+
+        brand = QLabel("GymBuddy")
+        brand.setStyleSheet(
+            f"font-family: '{FONT_DISPLAY}'; font-weight: 700; font-size: 26px; letter-spacing: 1px; text-transform: uppercase; color: #1a1612; padding: 4px 0;"
+        )
+        left_layout.addWidget(brand)
 
         self._calendar = CalendarWidget()
         self._calendar.dateSelected.connect(self._on_date_selected)
         left_layout.addWidget(self._calendar)
 
-        stats_group = QGroupBox("Stats")
-        stats_layout = QVBoxLayout(stats_group)
-        stats_layout.setSpacing(4)
-        self._streak_label = QLabel("Streak: —")
-        self._streak_label.setStyleSheet("font-size: 11px;")
-        stats_layout.addWidget(self._streak_label)
-        self._total_workouts_label = QLabel("Total Workouts: —")
-        self._total_workouts_label.setStyleSheet("font-size: 11px;")
-        stats_layout.addWidget(self._total_workouts_label)
-        self._total_volume_label = QLabel("Total Volume: —")
-        self._total_volume_label.setStyleSheet("font-size: 11px;")
-        stats_layout.addWidget(self._total_volume_label)
-        left_layout.addWidget(stats_group)
+        # Stats row
+        stats_row = QHBoxLayout()
+        stats_row.setSpacing(8)
+        self._streak_card = StatCard("—", "streak")
+        stats_row.addWidget(self._streak_card)
+        self._total_card = StatCard("—", "workouts")
+        stats_row.addWidget(self._total_card)
+        self._vol_card = StatCard("—", "volume")
+        stats_row.addWidget(self._vol_card)
+        left_layout.addLayout(stats_row)
 
         btn_layout = QVBoxLayout()
-        new_workout_btn = QPushButton("+ Log Today's Workout")
+        btn_layout.setSpacing(6)
+        new_workout_btn = QPushButton("+ New Workout")
         new_workout_btn.setObjectName("primaryButton")
         new_workout_btn.clicked.connect(self._log_workout)
-        new_goal_btn = QPushButton("+ Set New Goal")
+        btn_layout.addWidget(new_workout_btn)
+        new_goal_btn = QPushButton("+ New Goal")
         new_goal_btn.setObjectName("goalButton")
         new_goal_btn.clicked.connect(self._new_goal)
-        btn_layout.addWidget(new_workout_btn)
         btn_layout.addWidget(new_goal_btn)
         left_layout.addLayout(btn_layout)
 
         left_layout.addStretch()
         main_layout.addWidget(left_panel)
 
+        # ── RIGHT PANEL ──
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(8)
+        right_layout.setSpacing(10)
 
         self._today_header = QLabel()
         self._today_header.setObjectName("headerLabel")
@@ -250,8 +303,10 @@ class MainWindow(QMainWindow):
         self._workout_scroll.setWidgetResizable(True)
         self._workout_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self._workout_container = QWidget()
+        self._workout_container.setStyleSheet("background: transparent;")
         self._workout_container_layout = QVBoxLayout(self._workout_container)
-        self._workout_container_layout.setSpacing(6)
+        self._workout_container_layout.setSpacing(8)
+        self._workout_container_layout.setContentsMargins(0, 0, 0, 0)
         self._workout_scroll.setWidget(self._workout_container)
         right_layout.addWidget(self._workout_scroll, 3)
 
@@ -264,11 +319,13 @@ class MainWindow(QMainWindow):
 
         self._goals_scroll = QScrollArea()
         self._goals_scroll.setWidgetResizable(True)
-        self._goals_scroll.setMaximumHeight(200)
+        self._goals_scroll.setMaximumHeight(220)
         self._goals_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self._goals_container = QWidget()
+        self._goals_container.setStyleSheet("background: transparent;")
         self._goals_container_layout = QVBoxLayout(self._goals_container)
         self._goals_container_layout.setSpacing(6)
+        self._goals_container_layout.setContentsMargins(0, 0, 0, 0)
         self._goals_scroll.setWidget(self._goals_container)
         right_layout.addWidget(self._goals_scroll, 1)
 
@@ -281,11 +338,10 @@ class MainWindow(QMainWindow):
     def _setup_menu(self) -> None:
         menubar = self.menuBar()
 
-        file_menu = menubar.addMenu("File")
+        file_menu = menubar.addMenu("GymBuddy")
         settings_action = QAction("Settings...", self)
         settings_action.triggered.connect(self._show_settings)
         file_menu.addAction(settings_action)
-
         file_menu.addSeparator()
         quit_action = QAction("Quit", self)
         quit_action.setShortcut(QKeySequence("Ctrl+Q"))
@@ -297,13 +353,11 @@ class MainWindow(QMainWindow):
         log_action.setShortcut(QKeySequence("Ctrl+N"))
         log_action.triggered.connect(lambda: self._log_workout(date.today()))
         workout_menu.addAction(log_action)
-
-        library_action = QAction("Manage Exercise Library...", self)
+        library_action = QAction("Exercise Library...", self)
         library_action.triggered.connect(self._manage_exercise_library)
         workout_menu.addAction(library_action)
-
         workout_menu.addSeparator()
-        delete_action = QAction("Delete Selected Workout", self)
+        delete_action = QAction("Delete Selected", self)
         delete_action.setShortcut(QKeySequence("Ctrl+D"))
         delete_action.triggered.connect(
             lambda: self._delete_workout(self._calendar.selected_date)
@@ -345,18 +399,17 @@ class MainWindow(QMainWindow):
     def _update_stats(self) -> None:
         streak = consistency_streak(self._workouts)
         total_vol = sum(w.total_volume for w in self._workouts)
-        self._streak_label.setText(f"Streak: {streak} day{'s' if streak != 1 else ''}")
-        self._total_workouts_label.setText(f"Total Workouts: {len(self._workouts)}")
-        self._total_volume_label.setText(f"Total Volume: {total_vol:,.0f} kg")
+        self._streak_card.findChildren(QLabel)[0].setText(f"{streak}")
+        self._total_card.findChildren(QLabel)[0].setText(f"{len(self._workouts)}")
+        self._vol_card.findChildren(QLabel)[0].setText(f"{total_vol:,.0f}")
 
     def _update_workout_panel(self) -> None:
         selected = self._calendar.selected_date
-        self._today_header.setText(f"📋 {selected.strftime('%A, %B %d, %Y')}")
+        is_today = selected == date.today()
+        prefix = "" if not is_today else "\u25cf  "
+        self._today_header.setText(f"{prefix}{selected.strftime('%A, %B %d, %Y')}")
 
-        while self._workout_container_layout.count():
-            item = self._workout_container_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        self._clear_layout(self._workout_container_layout)
 
         existing = next((w for w in self._workouts if w.date == selected), None)
 
@@ -365,6 +418,7 @@ class MainWindow(QMainWindow):
             self._workout_container_layout.addWidget(card)
 
             btn_row = QHBoxLayout()
+            btn_row.setSpacing(6)
             edit_btn = QPushButton("Edit Workout")
             edit_btn.clicked.connect(lambda: self._log_workout(selected))
             btn_row.addWidget(edit_btn)
@@ -373,27 +427,27 @@ class MainWindow(QMainWindow):
             delete_btn.setObjectName("dangerButton")
             delete_btn.clicked.connect(lambda: self._delete_workout(selected))
             btn_row.addWidget(delete_btn)
-
             btn_row.addStretch()
             self._workout_container_layout.addLayout(btn_row)
 
             ex_label = QLabel()
-            ex_text = "<b>Exercises:</b><br>"
+            ex_lines = []
             for ex in existing.exercises:
                 working = [s for s in ex.sets if not s.is_warmup]
                 if working:
-                    best = f"{working[-1].weight}×{working[-1].reps}"
-                    ex_text += f"&nbsp;&nbsp;• {ex.name} — {best}"
+                    best = f"{working[-1].weight}\u00d7{working[-1].reps}"
+                    line = f"  \u2022  {ex.name}  \u2014  {best}"
                     if len(working) > 1:
-                        ex_text += f" ({len(working)} sets)"
-                    ex_text += "<br>"
-            ex_label.setText(ex_text)
-            ex_label.setStyleSheet("color: #a6adc8; font-size: 12px; padding: 4px 8px;")
-            ex_label.setTextFormat(Qt.TextFormat.RichText)
+                        line += f"  ({len(working)} sets)"
+                    ex_lines.append(line)
+            ex_label.setText("\n".join(ex_lines))
+            ex_label.setStyleSheet(
+                "color: #7a7265; font-size: 12px; padding: 8px 0 0 0;"
+            )
             self._workout_container_layout.addWidget(ex_label)
         else:
             placeholder = QLabel("No workout logged for this day.")
-            placeholder.setStyleSheet("color: #6c7086; padding: 20px; font-size: 13px;")
+            placeholder.setStyleSheet("color: #a39b8e; padding: 24px; font-size: 13px;")
             placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._workout_container_layout.addWidget(placeholder)
 
@@ -405,14 +459,11 @@ class MainWindow(QMainWindow):
         self._workout_container_layout.addStretch()
 
     def _update_goals_panel(self) -> None:
-        while self._goals_container_layout.count():
-            item = self._goals_container_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        self._clear_layout(self._goals_container_layout)
 
         if not self._goals:
-            placeholder = QLabel("No goals set. Click '+ Set New Goal' to start!")
-            placeholder.setStyleSheet("color: #6c7086; padding: 10px;")
+            placeholder = QLabel("No goals yet. Set one to track progress!")
+            placeholder.setStyleSheet("color: #a39b8e; padding: 12px; font-size: 12px;")
             placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._goals_container_layout.addWidget(placeholder)
         else:
@@ -425,6 +476,12 @@ class MainWindow(QMainWindow):
                 self._goals_container_layout.addWidget(card)
 
         self._goals_container_layout.addStretch()
+
+    def _clear_layout(self, layout: QVBoxLayout) -> None:
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
 
     def _on_date_selected(self, d: date) -> None:
         self._update_workout_panel()
@@ -446,12 +503,11 @@ class MainWindow(QMainWindow):
             self._update_stats()
             self._update_workout_panel()
             self._chart.set_data(self._workouts, self._goals)
-            self._status_bar.showMessage(f"Workout deleted for {d.isoformat()}", 5000)
+            self._status_bar.showMessage(f"Deleted {d.isoformat()}", 5000)
 
     def _log_workout(self, d: date | None = None) -> None:
         if d is None:
             d = self._calendar.selected_date
-
         existing = next((w for w in self._workouts if w.date == d), None)
         dialog = WorkoutDialog(
             d,
@@ -460,25 +516,20 @@ class MainWindow(QMainWindow):
             units=self._config.units,
             parent=self,
         )
-
         if dialog.exec() == QDialog.DialogCode.Accepted:
             workout = dialog.get_workout()
             if workout:
                 self._storage.save_workout(workout)
                 self._storage.append_monthly_progress(workout)
-
-                # Update in-memory list
                 if existing:
                     self._workouts.remove(existing)
                 self._workouts.append(workout)
                 self._workouts.sort(key=lambda w: w.date)
-
                 self._calendar.set_workout_dates(self._storage.list_workout_dates())
                 self._update_stats()
                 self._update_workout_panel()
                 self._chart.set_data(self._workouts, self._goals)
-
-                self._status_bar.showMessage(f"Workout saved for {d.isoformat()}", 5000)
+                self._status_bar.showMessage(f"Saved {d.isoformat()}", 5000)
 
     def _new_goal(self) -> None:
         dialog = GoalDialog(parent=self)
@@ -487,12 +538,10 @@ class MainWindow(QMainWindow):
             if goal:
                 self._storage.save_goal(goal)
                 self._goals.append(goal)
-
                 self._calendar.set_goal_dates([g.target_date for g in self._goals])
                 self._update_goals_panel()
                 self._chart.set_data(self._workouts, self._goals)
-
-                self._status_bar.showMessage(f"Goal '{goal.name}' saved!", 5000)
+                self._status_bar.showMessage(f"Goal set: {goal.name}", 5000)
 
     def _edit_goal(self, goal: Goal) -> None:
         dialog = GoalDialog(existing=goal, parent=self)
@@ -503,16 +552,15 @@ class MainWindow(QMainWindow):
                 self._storage.save_goal(updated)
                 self._goals.remove(goal)
                 self._goals.append(updated)
-
                 self._update_goals_panel()
                 self._chart.set_data(self._workouts, self._goals)
-                self._status_bar.showMessage(f"Goal updated: {updated.name}", 5000)
+                self._status_bar.showMessage(f"Updated: {updated.name}", 5000)
 
     def _delete_goal(self, goal: Goal) -> None:
         confirm = QMessageBox.question(
             self,
             "Delete Goal",
-            f"Delete goal '{goal.name}'?",
+            f"Delete '{goal.name}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if confirm == QMessageBox.StandardButton.Yes:
@@ -520,7 +568,7 @@ class MainWindow(QMainWindow):
             self._goals.remove(goal)
             self._update_goals_panel()
             self._chart.set_data(self._workouts, self._goals)
-            self._status_bar.showMessage(f"Goal deleted: {goal.name}", 5000)
+            self._status_bar.showMessage(f"Deleted: {goal.name}", 5000)
 
     def _manage_exercise_library(self) -> None:
         dialog = ExerciseLibraryDialog(self._exercise_library, parent=self)
@@ -528,8 +576,7 @@ class MainWindow(QMainWindow):
             self._exercise_library = dialog.get_exercises()
             self._storage.save_exercise_library(self._exercise_library)
             self._status_bar.showMessage(
-                f"Exercise library saved ({len(self._exercise_library)} exercises)",
-                5000,
+                f"{len(self._exercise_library)} exercises saved", 5000
             )
 
     def _go_to_today(self) -> None:
@@ -549,15 +596,12 @@ class MainWindow(QMainWindow):
         dialog.setMinimumWidth(400)
 
         layout = QFormLayout(dialog)
-
         vault_path = QLineEdit(self._config.vault_path)
         layout.addRow("Vault Path:", vault_path)
-
         units = QComboBox()
         units.addItems(["metric", "imperial"])
         units.setCurrentText(self._config.units)
         layout.addRow("Units:", units)
-
         split = QLineEdit(self._config.default_split)
         layout.addRow("Default Split:", split)
 
@@ -571,7 +615,7 @@ class MainWindow(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self._config.vault_path = vault_path.text()
             self._config.units = cast(
-                "Literal['metric', 'imperial']", units.currentText()
+                Literal["metric", "imperial"], units.currentText()
             )
             self._config.default_split = split.text()
             save_config(self._config)
