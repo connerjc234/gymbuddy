@@ -1,4 +1,3 @@
-
 from PyQt6.QtCore import QPointF, QRectF, Qt
 from PyQt6.QtGui import QBrush, QColor, QPainter, QPen
 from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
@@ -23,8 +22,9 @@ class ProgressChart(QWidget):
         if not self._workouts:
             painter = QPainter(self)
             painter.setPen(QColor("#6c7086"))
-            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter,
-                             "No workout data yet")
+            painter.drawText(
+                self.rect(), Qt.AlignmentFlag.AlignCenter, "No workout data yet"
+            )
             painter.end()
             return
 
@@ -60,9 +60,11 @@ class ProgressChart(QWidget):
 
             val = max_vol * i / num_grid
             painter.setPen(QColor("#a6adc8"))
-            painter.drawText(QRectF(0, y - 8, margin - 8, 16),
-                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
-                             f"{val:.0f}")
+            painter.drawText(
+                QRectF(0, y - 8, margin - 8, 16),
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                f"{val:.0f}",
+            )
             painter.setPen(QPen(QColor("#313244"), 1))
 
         # draw volume bars
@@ -73,7 +75,11 @@ class ProgressChart(QWidget):
             bar_w = min(chart_w / bar_count * 0.7, 40)
 
         for i, (d, vol) in enumerate(zip(dates, volumes)):
-            x = margin + (chart_w / max(bar_count, 1)) * i + (chart_w / max(bar_count, 1) - bar_w) / 2
+            x = (
+                margin
+                + (chart_w / max(bar_count, 1)) * i
+                + (chart_w / max(bar_count, 1) - bar_w) / 2
+            )
             bar_h = (vol / max_vol) * chart_h
             y = margin + chart_h - bar_h
 
@@ -88,8 +94,7 @@ class ProgressChart(QWidget):
             font.setPointSize(7)
             painter.setFont(font)
             rect = QRectF(x - 15, margin + chart_h + 4, bar_w + 30, 16)
-            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter,
-                             d.strftime("%m/%d"))
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, d.strftime("%m/%d"))
 
         # draw goal line if there are goals
         for goal in self._goals:
@@ -106,21 +111,25 @@ class ProgressChart(QWidget):
             font = painter.font()
             font.setPointSize(8)
             painter.setFont(font)
-            painter.drawText(QRectF(w - margin - 100, goal_y - 16, 100, 16),
-                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom,
-                             f"Goal: {goal.target_value:.0f}")
+            painter.drawText(
+                QRectF(w - margin - 100, goal_y - 16, 100, 16),
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom,
+                f"Goal: {goal.target_value:.0f}",
+            )
 
         # labels
         painter.setPen(QColor("#a6adc8"))
         font = painter.font()
         font.setPointSize(9)
         painter.setFont(font)
-        painter.drawText(QRectF(margin + 8, 8, 200, 20),
-                         Qt.AlignmentFlag.AlignLeft,
-                         "Volume (kg)")
-        painter.drawText(QRectF(margin, margin + chart_h, chart_w, 20),
-                         Qt.AlignmentFlag.AlignCenter,
-                         "Date")
+        painter.drawText(
+            QRectF(margin + 8, 8, 200, 20), Qt.AlignmentFlag.AlignLeft, "Volume (kg)"
+        )
+        painter.drawText(
+            QRectF(margin, margin + chart_h, chart_w, 20),
+            Qt.AlignmentFlag.AlignCenter,
+            "Date",
+        )
 
         painter.end()
 

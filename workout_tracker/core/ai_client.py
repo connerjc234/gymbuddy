@@ -19,16 +19,12 @@ class AIClient(ABC):
         goal: Goal,
         history: list[Workout],
         split_day: str,
-        available_equipment: list[str]
+        available_equipment: list[str],
     ) -> AIWorkoutPlan:
         """Generate a workout based on goal and history."""
 
     @abstractmethod
-    def analyze_progress(
-        self,
-        goal: Goal,
-        history: list[Workout]
-    ) -> str:
+    def analyze_progress(self, goal: Goal, history: list[Workout]) -> str:
         """Analyze progress toward goal and provide insights."""
 
     @abstractmethod
@@ -37,10 +33,7 @@ class AIClient(ABC):
 
     @abstractmethod
     def adjust_program(
-        self,
-        current_split: str,
-        goals: list[Goal],
-        history: list[Workout]
+        self, current_split: str, goals: list[Goal], history: list[Workout]
     ) -> str:
         """Suggest program adjustments."""
 
@@ -53,7 +46,7 @@ class MockAIClient(AIClient):
         goal: Goal,
         history: list[Workout],
         split_day: str,
-        available_equipment: list[str]
+        available_equipment: list[str],
     ) -> AIWorkoutPlan:
         exercises = self._default_exercises_for_split(split_day, available_equipment)
         return AIWorkoutPlan(exercises=exercises, notes="Generated from template")
@@ -71,14 +64,15 @@ class MockAIClient(AIClient):
         return avg_rpe > 8.5
 
     def adjust_program(
-        self,
-        current_split: str,
-        goals: list[Goal],
-        history: list[Workout]
+        self, current_split: str, goals: list[Goal], history: list[Workout]
     ) -> str:
-        return f"Current split: {current_split}. Consider adding volume for lagging goals."
+        return (
+            f"Current split: {current_split}. Consider adding volume for lagging goals."
+        )
 
-    def _default_exercises_for_split(self, split: str, equipment: list[str]) -> list[Exercise]:
+    def _default_exercises_for_split(
+        self, split: str, equipment: list[str]
+    ) -> list[Exercise]:
         templates = {
             "Push": [
                 ("Bench Press", 3, 8, 0),

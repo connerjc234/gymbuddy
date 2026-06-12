@@ -63,15 +63,21 @@ class CalendarWidget(QWidget):
         for i, day in enumerate(days):
             label = QLabel(day)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setStyleSheet("font-size: 11px; color: #a6adc8; font-weight: 600; padding: 2px;")
+            label.setStyleSheet(
+                "font-size: 11px; color: #a6adc8; font-weight: 600; padding: 2px;"
+            )
             self._grid.addWidget(label, 0, i)
 
         first_day = date(self._current_date.year, self._current_date.month, 1)
         last_day = date(
-            self._current_date.year + 1 if self._current_date.month == 12 else self._current_date.year,
-            self._current_date.month % 12 + 1, 1
+            self._current_date.year + 1
+            if self._current_date.month == 12
+            else self._current_date.year,
+            self._current_date.month % 12 + 1,
+            1,
         )
         from datetime import timedelta
+
         last_day -= timedelta(days=1)
 
         start_col = (first_day.weekday()) % 7
@@ -123,7 +129,7 @@ class CalendarWidget(QWidget):
                 border: {border};
                 border-radius: 4px;
                 font-size: 12px;
-                font-weight: {'700' if is_today or is_selected else '400'};
+                font-weight: {"700" if is_today or is_selected else "400"};
             }}
             QPushButton:hover {{
                 background-color: #585b70;
@@ -172,6 +178,8 @@ class CalendarWidget(QWidget):
 
 
 class DayButton(QPushButton):
-    def __init__(self, text: str, day_date: date, parent: QWidget | None = None) -> None:
+    def __init__(
+        self, text: str, day_date: date, parent: QWidget | None = None
+    ) -> None:
         super().__init__(text, parent)
         self.day_date = day_date

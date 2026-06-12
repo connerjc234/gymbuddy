@@ -1,5 +1,5 @@
 from datetime import date
-from typing import cast, Literal
+from typing import Literal, cast
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QKeySequence
@@ -24,6 +24,7 @@ from ..core.config import get_config, save_config
 from ..core.models import Goal, Workout
 from ..core.storage import VaultStorage
 from .calendar_widget import CalendarWidget
+from .exercise_dialog import ExerciseLibraryDialog
 from .goal_dialog import GoalDialog
 from .progress_chart import ProgressChartWidget
 from .theme import get_stylesheet
@@ -157,13 +158,20 @@ class WorkoutSummaryCard(QFrame):
         layout.addLayout(header)
 
         vol = self._workout.total_volume
-        vol_label = QLabel(f"Volume: {vol:.0f} kg · {self._workout.total_sets} sets · {self._workout.exercise_count} exercises")
+        vol_label = QLabel(
+            f"Volume: {vol:.0f} kg · {self._workout.total_sets} sets · {self._workout.exercise_count} exercises"
+        )
         vol_label.setStyleSheet("color: #a6adc8; font-size: 11px;")
         layout.addWidget(vol_label)
 
         if self._workout.notes:
-            notes_label = QLabel(self._workout.notes[:80] + ("..." if len(self._workout.notes) > 80 else ""))
-            notes_label.setStyleSheet("color: #6c7086; font-size: 11px; font-style: italic;")
+            notes_label = QLabel(
+                self._workout.notes[:80]
+                + ("..." if len(self._workout.notes) > 80 else "")
+            )
+            notes_label.setStyleSheet(
+                "color: #6c7086; font-size: 11px; font-style: italic;"
+            )
             layout.addWidget(notes_label)
 
 
@@ -174,6 +182,7 @@ class MainWindow(QMainWindow):
         self._storage = VaultStorage()
         self._workouts: list[Workout] = []
         self._goals: list[Goal] = []
+        self._exercise_library: list[str] = []
 
         self._setup_ui()
         self._setup_menu()
@@ -190,7 +199,6 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(12, 8, 12, 8)
         main_layout.setSpacing(12)
 
-        # Left panel: Calendar
         left_panel = QWidget()
         left_panel.setMaximumWidth(320)
         left_layout = QVBoxLayout(left_panel)
@@ -201,7 +209,6 @@ class MainWindow(QMainWindow):
         self._calendar.dateSelected.connect(self._on_date_selected)
         left_layout.addWidget(self._calendar)
 
-        # Stats summary
         stats_group = QGroupBox("Stats")
         stats_layout = QVBoxLayout(stats_group)
         stats_layout.setSpacing(4)
@@ -216,7 +223,6 @@ class MainWindow(QMainWindow):
         stats_layout.addWidget(self._total_volume_label)
         left_layout.addWidget(stats_group)
 
-        # New workout / goal buttons
         btn_layout = QVBoxLayout()
         new_workout_btn = QPushButton("+ Log Today's Workout")
         new_workout_btn.setObjectName("primaryButton")
@@ -231,13 +237,11 @@ class MainWindow(QMainWindow):
         left_layout.addStretch()
         main_layout.addWidget(left_panel)
 
-        # Right panel: Content
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(8)
 
-        # Today's workout section
         self._today_header = QLabel()
         self._today_header.setObjectName("headerLabel")
         right_layout.addWidget(self._today_header)
@@ -251,11 +255,9 @@ class MainWindow(QMainWindow):
         self._workout_scroll.setWidget(self._workout_container)
         right_layout.addWidget(self._workout_scroll, 3)
 
-        # Progress chart
         self._chart = ProgressChartWidget()
         right_layout.addWidget(self._chart, 2)
 
-        # Goals section
         goals_header = QLabel("Active Goals")
         goals_header.setObjectName("subsectionLabel")
         right_layout.addWidget(goals_header)
@@ -296,6 +298,18 @@ class MainWindow(QMainWindow):
         log_action.triggered.connect(lambda: self._log_workout(date.today()))
         workout_menu.addAction(log_action)
 
+        library_action = QAction("Manage Exercise Library...", self)
+        library_action.triggered.connect(self._manage_exercise_library)
+        workout_menu.addAction(library_action)
+
+        workout_menu.addSeparator()
+        delete_action = QAction("Delete Selected Workout", self)
+        delete_action.setShortcut(QKeySequence("Ctrl+D"))
+        delete_action.triggered.connect(
+            lambda: self._delete_workout(self._calendar.selected_date)
+        )
+        workout_menu.addAction(delete_action)
+
         view_menu = menubar.addMenu("View")
         today_action = QAction("Go to Today", self)
         today_action.setShortcut(QKeySequence("Ctrl+T"))
@@ -318,6 +332,7 @@ class MainWindow(QMainWindow):
         self._workouts.reverse()
 
         self._goals = self._storage.load_goals()
+        self._exercise_library = self._storage.load_exercise_library()
 
         self._calendar.set_workout_dates(list(workout_dates))
         self._calendar.set_goal_dates([g.target_date for g in self._goals])
@@ -349,9 +364,33 @@ class MainWindow(QMainWindow):
             card = WorkoutSummaryCard(existing)
             self._workout_container_layout.addWidget(card)
 
+            btn_row = QHBoxLayout()
             edit_btn = QPushButton("Edit Workout")
             edit_btn.clicked.connect(lambda: self._log_workout(selected))
-            self._workout_container_layout.addWidget(edit_btn)
+            btn_row.addWidget(edit_btn)
+
+            delete_btn = QPushButton("Delete")
+            delete_btn.setObjectName("dangerButton")
+            delete_btn.clicked.connect(lambda: self._delete_workout(selected))
+            btn_row.addWidget(delete_btn)
+
+            btn_row.addStretch()
+            self._workout_container_layout.addLayout(btn_row)
+
+            ex_label = QLabel()
+            ex_text = "<b>Exercises:</b><br>"
+            for ex in existing.exercises:
+                working = [s for s in ex.sets if not s.is_warmup]
+                if working:
+                    best = f"{working[-1].weight}×{working[-1].reps}"
+                    ex_text += f"&nbsp;&nbsp;• {ex.name} — {best}"
+                    if len(working) > 1:
+                        ex_text += f" ({len(working)} sets)"
+                    ex_text += "<br>"
+            ex_label.setText(ex_text)
+            ex_label.setStyleSheet("color: #a6adc8; font-size: 12px; padding: 4px 8px;")
+            ex_label.setTextFormat(Qt.TextFormat.RichText)
+            self._workout_container_layout.addWidget(ex_label)
         else:
             placeholder = QLabel("No workout logged for this day.")
             placeholder.setStyleSheet("color: #6c7086; padding: 20px; font-size: 13px;")
@@ -390,12 +429,37 @@ class MainWindow(QMainWindow):
     def _on_date_selected(self, d: date) -> None:
         self._update_workout_panel()
 
+    def _delete_workout(self, d: date) -> None:
+        existing = next((w for w in self._workouts if w.date == d), None)
+        if not existing:
+            return
+        confirm = QMessageBox.question(
+            self,
+            "Delete Workout",
+            f"Delete workout for {d.isoformat()}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if confirm == QMessageBox.StandardButton.Yes:
+            self._storage.delete_workout(d)
+            self._workouts.remove(existing)
+            self._calendar.set_workout_dates(self._storage.list_workout_dates())
+            self._update_stats()
+            self._update_workout_panel()
+            self._chart.set_data(self._workouts, self._goals)
+            self._status_bar.showMessage(f"Workout deleted for {d.isoformat()}", 5000)
+
     def _log_workout(self, d: date | None = None) -> None:
         if d is None:
             d = self._calendar.selected_date
 
         existing = next((w for w in self._workouts if w.date == d), None)
-        dialog = WorkoutDialog(d, existing=existing, parent=self)
+        dialog = WorkoutDialog(
+            d,
+            existing=existing,
+            exercise_library=self._exercise_library,
+            units=self._config.units,
+            parent=self,
+        )
 
         if dialog.exec() == QDialog.DialogCode.Accepted:
             workout = dialog.get_workout()
@@ -446,9 +510,10 @@ class MainWindow(QMainWindow):
 
     def _delete_goal(self, goal: Goal) -> None:
         confirm = QMessageBox.question(
-            self, "Delete Goal",
+            self,
+            "Delete Goal",
             f"Delete goal '{goal.name}'?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if confirm == QMessageBox.StandardButton.Yes:
             self._storage.delete_goal(goal)
@@ -456,6 +521,16 @@ class MainWindow(QMainWindow):
             self._update_goals_panel()
             self._chart.set_data(self._workouts, self._goals)
             self._status_bar.showMessage(f"Goal deleted: {goal.name}", 5000)
+
+    def _manage_exercise_library(self) -> None:
+        dialog = ExerciseLibraryDialog(self._exercise_library, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._exercise_library = dialog.get_exercises()
+            self._storage.save_exercise_library(self._exercise_library)
+            self._status_bar.showMessage(
+                f"Exercise library saved ({len(self._exercise_library)} exercises)",
+                5000,
+            )
 
     def _go_to_today(self) -> None:
         self._calendar.go_to_date(date.today())
@@ -495,7 +570,9 @@ class MainWindow(QMainWindow):
 
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self._config.vault_path = vault_path.text()
-            self._config.units = cast("Literal['metric', 'imperial']", units.currentText())
+            self._config.units = cast(
+                "Literal['metric', 'imperial']", units.currentText()
+            )
             self._config.default_split = split.text()
             save_config(self._config)
             self._storage = VaultStorage()

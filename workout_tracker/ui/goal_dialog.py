@@ -20,8 +20,9 @@ from ..core.models import Goal, GoalMetric
 
 
 class GoalDialog(QDialog):
-    def __init__(self, existing: Goal | None = None,
-                 parent: QWidget | None = None) -> None:
+    def __init__(
+        self, existing: Goal | None = None, parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self._goal = existing
         self._setup_ui()
@@ -51,6 +52,7 @@ class GoalDialog(QDialog):
         self._metric_combo = QComboBox()
         for m in GoalMetric:
             self._metric_combo.addItem(m.value)
+        self._metric_combo.currentTextChanged.connect(self._on_metric_changed)
         metric_layout.addWidget(self._metric_combo)
 
         metric_layout.addWidget(QLabel("Exercise (optional):"))
@@ -80,7 +82,7 @@ class GoalDialog(QDialog):
 
         layout.addWidget(QLabel("Target Date:"))
         self._date_input = QDateEdit()
-        self._date_input.setDate(QDate.currentDate().addDays(90))
+        self._date_input.setDate(QDate(2026, 8, 15))  # Summer goal deadline
         self._date_input.setCalendarPopup(True)
         self._date_input.setDisplayFormat("yyyy-MM-dd")
         layout.addWidget(self._date_input)
@@ -111,9 +113,9 @@ class GoalDialog(QDialog):
             self._exercise_input.setText(goal.exercise_name)
         self._target_spin.setValue(goal.target_value)
         self._current_spin.setValue(goal.current_value)
-        self._date_input.setDate(QDate(
-            goal.target_date.year, goal.target_date.month, goal.target_date.day
-        ))
+        self._date_input.setDate(
+            QDate(goal.target_date.year, goal.target_date.month, goal.target_date.day)
+        )
         self._notes_edit.setText(goal.notes)
 
     def _on_metric_changed(self, metric: str) -> None:

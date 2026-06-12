@@ -23,36 +23,130 @@ from PyQt6.QtWidgets import (
 
 from ..core.models import Exercise, Set, Workout
 
-EXERCISE_LIBRARY = [
-    "Bench Press", "Incline Bench Press", "Decline Bench Press",
-    "Overhead Press", "Arnold Press", "Lateral Raises", "Front Raises",
-    "Tricep Pushdowns", "Skull Crushers", "Close Grip Bench",
-    "Pull-ups", "Lat Pulldowns", "Barbell Rows", "Seated Cable Rows",
-    "Face Pulls", "Rear Delt Flyes", "Bicep Curls", "Hammer Curls",
-    "Squats", "Front Squats", "Leg Press", "Romanian Deadlifts",
-    "Deadlifts", "Leg Curls", "Leg Extensions", "Calf Raises",
-    "Hip Thrusts", "Glute Bridges", "Lunges", "Bulgarian Split Squats",
-    "Dips", "Push-ups", "Chin-ups", "Shrugs", "Farmers Walks",
+DEFAULT_EXERCISES = [
+    "Bench Press",
+    "Incline Bench Press",
+    "Decline Bench Press",
+    "Overhead Press",
+    "Arnold Press",
+    "Lateral Raises",
+    "Front Raises",
+    "Tricep Pushdowns",
+    "Skull Crushers",
+    "Close Grip Bench",
+    "Pull-ups",
+    "Lat Pulldowns",
+    "Barbell Rows",
+    "Seated Cable Rows",
+    "Face Pulls",
+    "Rear Delt Flyes",
+    "Bicep Curls",
+    "Hammer Curls",
+    "Squats",
+    "Front Squats",
+    "Leg Press",
+    "Romanian Deadlifts",
+    "Deadlifts",
+    "Leg Curls",
+    "Leg Extensions",
+    "Calf Raises",
+    "Hip Thrusts",
+    "Glute Bridges",
+    "Lunges",
+    "Bulgarian Split Squats",
+    "Dips",
+    "Push-ups",
+    "Chin-ups",
+    "Shrugs",
+    "Farmers Walks",
 ]
 
-SPLIT_OPTIONS = ["", "Push", "Pull", "Legs", "Upper", "Lower",
-                 "Full Body", "Chest", "Back", "Shoulders", "Arms"]
+SPLIT_EXERCISES: dict[str, list[str]] = {
+    "Push": [
+        "Bench Press",
+        "Overhead Press",
+        "Incline Dumbbell Press",
+        "Lateral Raises",
+        "Tricep Pushdowns",
+        "Skull Crushers",
+    ],
+    "Pull": [
+        "Pull-ups",
+        "Barbell Rows",
+        "Seated Cable Rows",
+        "Face Pulls",
+        "Bicep Curls",
+        "Hammer Curls",
+    ],
+    "Legs": [
+        "Squats",
+        "Romanian Deadlifts",
+        "Leg Press",
+        "Leg Curls",
+        "Leg Extensions",
+        "Calf Raises",
+    ],
+    "Upper": [
+        "Bench Press",
+        "Overhead Press",
+        "Barbell Rows",
+        "Pull-ups",
+        "Lateral Raises",
+        "Bicep Curls",
+    ],
+    "Lower": [
+        "Squats",
+        "Deadlifts",
+        "Leg Press",
+        "Leg Curls",
+        "Calf Raises",
+    ],
+    "Full Body": [
+        "Squats",
+        "Bench Press",
+        "Barbell Rows",
+        "Overhead Press",
+        "Deadlifts",
+    ],
+}
+
+SPLIT_OPTIONS = [
+    "",
+    "Push",
+    "Pull",
+    "Legs",
+    "Upper",
+    "Lower",
+    "Full Body",
+    "Chest",
+    "Back",
+    "Shoulders",
+    "Arms",
+]
 
 
 class WorkoutDialog(QDialog):
-    def __init__(self, workout_date: date, existing: Workout | None = None,
-                 parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        workout_date: date,
+        existing: Workout | None = None,
+        exercise_library: list[str] | None = None,
+        units: str = "metric",
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self._workout_date = workout_date
         self._workout = existing
+        self._exercise_library = list(set((exercise_library or []) + DEFAULT_EXERCISES))
+        self._units = units
+        self._weight_suffix = " kg" if units == "metric" else " lbs"
         self._setup_ui()
-
         if existing:
             self._load_workout(existing)
 
     def _setup_ui(self) -> None:
         self.setWindowTitle(f"Workout - {self._workout_date.isoformat()}")
-        self.setMinimumSize(700, 600)
+        self.setMinimumSize(750, 600)
         self.setModal(True)
 
         layout = QVBoxLayout(self)
@@ -66,6 +160,7 @@ class WorkoutDialog(QDialog):
         info_layout.addWidget(QLabel("Split:"))
         self._split_combo = QComboBox()
         self._split_combo.addItems(SPLIT_OPTIONS)
+        self._split_combo.currentTextChanged.connect(self._on_split_changed)
         info_layout.addWidget(self._split_combo)
 
         info_layout.addWidget(QLabel("Duration (min):"))
@@ -80,7 +175,9 @@ class WorkoutDialog(QDialog):
 
         exercise_group = QGroupBox("Exercises")
         exercise_layout = QVBoxLayout(exercise_group)
-        self._exercises_widget = ExerciseListWidget()
+        self._exercises_widget = ExerciseListWidget(
+            self._exercise_library, self._weight_suffix
+        )
         exercise_layout.addWidget(self._exercises_widget)
 
         add_ex_btn = QPushButton("+ Add Exercise")
@@ -91,7 +188,9 @@ class WorkoutDialog(QDialog):
         layout.addWidget(QLabel("Notes:"))
         self._notes_edit = QTextEdit()
         self._notes_edit.setMaximumHeight(80)
-        self._notes_edit.setPlaceholderText("How did the workout feel? Any injuries or adjustments?")
+        self._notes_edit.setPlaceholderText(
+            "How did the workout feel? Any injuries or adjustments?"
+        )
         layout.addWidget(self._notes_edit)
 
         btn_layout = QHBoxLayout()
@@ -104,6 +203,29 @@ class WorkoutDialog(QDialog):
         btn_layout.addWidget(cancel_btn)
         btn_layout.addWidget(save_btn)
         layout.addLayout(btn_layout)
+
+    def _on_split_changed(self, split: str) -> None:
+        if not split:
+            return
+        if self._workout:
+            return
+        if self._exercises_widget.get_exercises():
+            return
+
+        split_lower = split.lower()
+        for key, exercises in SPLIT_EXERCISES.items():
+            if key.lower() == split_lower:
+                self.setWindowTitle(
+                    f"Workout - {self._workout_date.isoformat()} ({split})"
+                )
+                available = [ex for ex in exercises if ex in self._exercise_library]
+                for ex_name in available:
+                    self._exercises_widget.add_exercise(
+                        Exercise(
+                            name=ex_name, order=self._exercises_widget._layout.count()
+                        )
+                    )
+                break
 
     def _load_workout(self, workout: Workout) -> None:
         if workout.split_day:
@@ -119,8 +241,9 @@ class WorkoutDialog(QDialog):
     def _save(self) -> None:
         exercises = self._exercises_widget.get_exercises()
         if not exercises:
-            QMessageBox.warning(self, "No Exercises",
-                                "Add at least one exercise to save the workout.")
+            QMessageBox.warning(
+                self, "No Exercises", "Add at least one exercise to save the workout."
+            )
             return
 
         self._workout = Workout(
@@ -138,8 +261,16 @@ class WorkoutDialog(QDialog):
 
 
 class ExerciseRow(QWidget):
-    def __init__(self, exercise: Exercise | None = None, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        exercise_library: list[str],
+        weight_suffix: str = " kg",
+        exercise: Exercise | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
+        self._exercise_library = exercise_library
+        self._weight_suffix = weight_suffix
         self._exercise = exercise
         self._setup_ui()
         if exercise:
@@ -152,8 +283,8 @@ class ExerciseRow(QWidget):
         header = QHBoxLayout()
         self._name_combo = QComboBox()
         self._name_combo.setEditable(True)
-        self._name_combo.addItems(EXERCISE_LIBRARY)
-        self._name_combo.setMinimumWidth(180)
+        self._name_combo.addItems(sorted(self._exercise_library))
+        self._name_combo.setMinimumWidth(190)
         self._name_combo.currentTextChanged.connect(self._on_name_changed)
         header.addWidget(self._name_combo)
 
@@ -168,12 +299,19 @@ class ExerciseRow(QWidget):
         layout.addLayout(header)
 
         self._sets_table = QTableWidget(0, 5)
-        self._sets_table.setHorizontalHeaderLabels(["Set", "Weight", "Reps", "RPE", "Warmup"])
-        self._sets_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        self._sets_table.setHorizontalHeaderLabels(
+            ["Set", "Weight", "Reps", "RPE", "Warmup"]
+        )
+        h_header = self._sets_table.horizontalHeader()
+        if h_header:
+            h_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self._sets_table.setColumnWidth(0, 40)
-        self._sets_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        if h_header:
+            h_header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         self._sets_table.setColumnWidth(4, 60)
-        self._sets_table.verticalHeader().setVisible(False)
+        v_header = self._sets_table.verticalHeader()
+        if v_header:
+            v_header.setVisible(False)
         layout.addWidget(self._sets_table)
 
         set_btn_layout = QHBoxLayout()
@@ -202,7 +340,7 @@ class ExerciseRow(QWidget):
         weight.setRange(0, 999.5)
         weight.setSingleStep(2.5)
         weight.setDecimals(1)
-        weight.setSuffix(" kg")
+        weight.setSuffix(self._weight_suffix)
         weight.setValue(0)
         self._sets_table.setCellWidget(row, 1, weight)
 
@@ -226,8 +364,6 @@ class ExerciseRow(QWidget):
         warmup_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         warmup_layout.setContentsMargins(0, 0, 0, 0)
         self._sets_table.setCellWidget(row, 4, warmup_widget)
-
-        weight.valueChanged.connect(lambda: self._renumber_sets())
 
     def _renumber_sets(self) -> None:
         for row in range(self._sets_table.rowCount()):
@@ -255,7 +391,7 @@ class ExerciseRow(QWidget):
             weight.setRange(0, 999.5)
             weight.setSingleStep(2.5)
             weight.setDecimals(1)
-            weight.setSuffix(" kg")
+            weight.setSuffix(self._weight_suffix)
             weight.setValue(s.weight)
             self._sets_table.setCellWidget(row, 1, weight)
 
@@ -298,18 +434,21 @@ class ExerciseRow(QWidget):
             weight = weight_widget.value()
             reps = reps_widget.value()
             rpe = rpe_widget.value()
-            is_warmup = warmup_widget.findChild(QCheckBox).isChecked()
+            warmup_check = warmup_widget.findChild(QCheckBox)
+            is_warmup = warmup_check.isChecked() if warmup_check else False
 
             if weight == 0 or reps == 0:
                 continue
 
-            sets.append(Set(
-                weight=weight,
-                reps=reps,
-                rpe=rpe,
-                is_warmup=is_warmup,
-                set_number=row + 1,
-            ))
+            sets.append(
+                Set(
+                    weight=weight,
+                    reps=reps,
+                    rpe=rpe,
+                    is_warmup=is_warmup,
+                    set_number=row + 1,
+                )
+            )
 
         return Exercise(
             name=name,
@@ -319,19 +458,24 @@ class ExerciseRow(QWidget):
 
 
 class ExerciseListWidget(QWidget):
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        exercise_library: list[str],
+        weight_suffix: str = " kg",
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
+        self._exercise_library = exercise_library
+        self._weight_suffix = weight_suffix
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(4)
 
     def add_exercise(self, exercise: Exercise | None = None) -> None:
-        row = ExerciseRow(exercise)
+        row = ExerciseRow(
+            self._exercise_library, self._weight_suffix, exercise=exercise
+        )
         row._remove_btn.clicked.connect(lambda: self._remove_exercise(row))
-        if self._layout.count() > 0:
-            sep = self._layout.itemAt(self._layout.count() - 1)
-            if sep and sep.widget():
-                sep.widget().deleteLater()
         self._layout.addWidget(row)
 
     def _remove_exercise(self, row: ExerciseRow) -> None:
@@ -341,7 +485,10 @@ class ExerciseListWidget(QWidget):
     def get_exercises(self) -> list[Exercise]:
         exercises = []
         for i in range(self._layout.count()):
-            widget = self._layout.itemAt(i).widget()
+            item = self._layout.itemAt(i)
+            if item is None:
+                continue
+            widget = item.widget()
             if isinstance(widget, ExerciseRow):
                 ex = widget.get_exercise()
                 if ex and ex.sets:

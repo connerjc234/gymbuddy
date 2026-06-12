@@ -97,7 +97,11 @@ class VaultStorage:
                         workout.exercises.append(current_exercise)
                     name = line[4:].strip()
                     current_exercise = Exercise(name=name, order=len(workout.exercises))
-                elif line.startswith("| ") and "Weight" not in line and "-----" not in line:
+                elif (
+                    line.startswith("| ")
+                    and "Weight" not in line
+                    and "-----" not in line
+                ):
                     if current_exercise:
                         parts = [p.strip() for p in line.split("|")[1:-1]]
                         if len(parts) >= 3:
@@ -105,15 +109,21 @@ class VaultStorage:
                                 set_num = int(parts[0])
                                 weight = float(parts[1])
                                 reps = int(parts[2])
-                                rpe = float(parts[3]) if len(parts) > 3 and parts[3] else None
+                                rpe = (
+                                    float(parts[3])
+                                    if len(parts) > 3 and parts[3]
+                                    else None
+                                )
                                 is_warmup = "(warmup)" in line
-                                current_exercise.sets.append(Set(
-                                    weight=weight,
-                                    reps=reps,
-                                    rpe=rpe,
-                                    is_warmup=is_warmup,
-                                    set_number=set_num,
-                                ))
+                                current_exercise.sets.append(
+                                    Set(
+                                        weight=weight,
+                                        reps=reps,
+                                        rpe=rpe,
+                                        is_warmup=is_warmup,
+                                        set_number=set_num,
+                                    )
+                                )
                             except (ValueError, IndexError):
                                 pass
 
@@ -170,18 +180,86 @@ class VaultStorage:
             try:
                 goal = Goal(
                     name=fm.get("name", path.stem),
-                    target_date=date.fromisoformat(fm.get("target_date", date.today().isoformat())),
+                    target_date=date.fromisoformat(
+                        fm.get("target_date", date.today().isoformat())
+                    ),
                     metric=GoalMetric(fm.get("metric", "weight")),
                     target_value=fm.get("target_value", 0.0),
                     current_value=fm.get("current_value", 0.0),
                     exercise_name=fm.get("exercise_name"),
-                    created_date=date.fromisoformat(fm.get("created_date", date.today().isoformat())),
+                    created_date=date.fromisoformat(
+                        fm.get("created_date", date.today().isoformat())
+                    ),
                     notes=body.strip(),
                 )
                 goals.append(goal)
             except (ValueError, KeyError):
                 pass
         return sorted(goals, key=lambda g: g.target_date)
+
+    def delete_workout(self, workout_date: date) -> None:
+        path = self._workout_file(workout_date)
+        if path.exists():
+            path.unlink()
+
+    def load_exercise_library(self) -> list[str]:
+        path = self.config.gym_path / "Overview.md"
+        if not path.exists():
+            return []
+
+        content = path.read_text()
+        exercises: list[str] = []
+        in_exercise_table = False
+        for line in content.splitlines():
+            if line.startswith("## Current Split") or line.startswith("## Split"):
+                in_exercise_table = False
+            if line.startswith("### "):
+                ex_name = line[4:].strip()
+                if ex_name and ex_name not in exercises:
+                    exercises.append(ex_name)
+            if line.startswith("|") and "Exercise" in line:
+                in_exercise_table = True
+                continue
+            if in_exercise_table and line.startswith("|"):
+                parts = [p.strip() for p in line.split("|")]
+                if len(parts) >= 2 and parts[1] and not parts[1].startswith("-"):
+                    ex_name = parts[1]
+                    if ex_name and ex_name not in exercises:
+                        exercises.append(ex_name)
+
+        return exercises
+
+    def save_exercise_library(self, exercises: list[str]) -> None:
+        path = self.config.gym_path / "Overview.md"
+        if not path.exists():
+            path.write_text("# Gym — Overview\n\n## Exercise Library\n\n")
+        content = path.read_text()
+        if "## Exercise Library" not in content:
+            content += "\n## Exercise Library\n\n"
+            content += "| Exercise |\n|----------|\n"
+            for ex in exercises:
+                content += f"| {ex} |\n"
+            path.write_text(content)
+        else:
+            lines = content.splitlines()
+            in_library = False
+            library_start = -1
+            library_end = -1
+            for i, line in enumerate(lines):
+                if line.startswith("## Exercise Library"):
+                    in_library = True
+                    library_start = i
+                    continue
+                if in_library and line.startswith("## "):
+                    library_end = i
+                    break
+            if library_start >= 0:
+                header = lines[: library_start + 1]
+                rest = lines[library_end:] if library_end >= 0 else []
+                table = ["| Exercise |", "|----------|"]
+                for ex in exercises:
+                    table.append(f"| {ex} |")
+                path.write_text("\n".join(header + table + rest) + "\n")
 
     def delete_goal(self, goal: Goal) -> None:
         path = self._goal_file(goal)
@@ -193,13 +271,17 @@ class VaultStorage:
         progress_file = self.config.gym_path / f"Progress-{month_key}.md"
 
         if not progress_file.exists():
-            progress_file.write_text(f"# Progress — {month_key}\n\n| Date | Exercise | Weight | Reps | RPE | Volume |\n|------|----------|--------|------|-----|--------|\n")
+            progress_file.write_text(
+                f"# Progress — {month_key}\n\n| Date | Exercise | Weight | Reps | RPE | Volume |\n|------|----------|--------|------|-----|--------|\n"
+            )
 
         lines = progress_file.read_text().splitlines()
         for ex in workout.exercises:
             for s in ex.working_sets:
                 vol = s.volume
                 rpe = f"{s.rpe:.1f}" if s.rpe else ""
-                lines.append(f"| {workout.date.isoformat()} | {ex.name} | {s.weight} | {s.reps} | {rpe} | {vol:.1f} |")
+                lines.append(
+                    f"| {workout.date.isoformat()} | {ex.name} | {s.weight} | {s.reps} | {rpe} | {vol:.1f} |"
+                )
 
         progress_file.write_text("\n".join(lines) + "\n")

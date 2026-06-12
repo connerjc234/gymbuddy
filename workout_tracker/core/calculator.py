@@ -1,6 +1,5 @@
 """Calculation utilities for workout tracker."""
 
-
 from .models import Exercise, Workout
 
 
@@ -42,7 +41,9 @@ def calculate_session_volume(workout: Workout) -> float:
     return sum(ex.total_volume for ex in workout.exercises)
 
 
-def calculate_exercise_1rm_estimates(exercise: Exercise) -> list[tuple[float, int, float]]:
+def calculate_exercise_1rm_estimates(
+    exercise: Exercise,
+) -> list[tuple[float, int, float]]:
     results = []
     for s in exercise.working_sets:
         est = epley_1rm(s.weight, s.reps)
@@ -56,9 +57,7 @@ def best_estimated_1rm(exercise: Exercise) -> float | None:
 
 
 def suggest_progression(
-    exercise: Exercise,
-    target_rpe: float = 8.0,
-    increment: float = 2.5
+    exercise: Exercise, target_rpe: float = 8.0, increment: float = 2.5
 ) -> float | None:
     top = exercise.top_set
     if not top:
@@ -76,6 +75,7 @@ def suggest_progression(
 
 def weekly_volume(workouts: list[Workout], exercise_name: str) -> dict[int, float]:
     from collections import defaultdict
+
     vol_by_week: dict[int, float] = defaultdict(float)
     for w in workouts:
         for ex in w.exercises:
