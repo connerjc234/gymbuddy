@@ -1,0 +1,205 @@
+"""Obsidian vault storage layer for workout tracker."""
+
+import re
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from .config import get_config
+from .models import Exercise, Goal, GoalMetric, Set, Workout
+
+
+class VaultStorage:
+    def __init__(self) -> None:
+        self.config = get_config()
+
+    def _workout_file(self, workout_date: date) -> Path:
+        return self.config.workouts_path / f"{workout_date.isoformat()}.md"
+
+    def _goal_file(self, goal: Goal) -> Path:
+        safe_name = re.sub(r"[^\w\-]", "-", goal.name.lower())
+        return self.config.goals_path / f"{goal.target_date.isoformat()}-{safe_name}.md"
+
+    def _parse_frontmatter(self, content: str) -> tuple[dict[str, Any], str]:
+        if content.startswith("---"):
+            parts = content.split("---", 2)
+            if len(parts) >= 3:
+                fm = yaml.safe_load(parts[1]) or {}
+                body = parts[2].strip()
+                return fm, body
+        return {}, content
+
+    def _write_frontmatter(self, fm: dict[str, Any], body: str) -> str:
+        return f"---\n{yaml.dump(fm, sort_keys=False)}---\n\n{body}\n"
+
+    def save_workout(self, workout: Workout) -> None:
+        self.config.workouts_path.mkdir(parents=True, exist_ok=True)
+
+        fm = {
+            "date": workout.date.isoformat(),
+            "split": workout.split_day,
+            "duration_min": workout.duration_min,
+            "completed": workout.completed,
+        }
+
+        lines = ["## Exercises\n"]
+        for ex in workout.exercises:
+            lines.append(f"### {ex.name}\n")
+            if ex.notes:
+                lines.append(f"*{ex.notes}*\n")
+            lines.append("| Set | Weight | Reps | RPE |")
+            lines.append("|-----|--------|------|-----|")
+            for i, s in enumerate(ex.sets, 1):
+                rpe = f"{s.rpe:.1f}" if s.rpe is not None else ""
+                warmup = " (warmup)" if s.is_warmup else ""
+                lines.append(f"| {i} | {s.weight} | {s.reps} | {rpe} |{warmup}")
+            lines.append("")
+
+        if workout.notes:
+            lines.append("## Notes\n")
+            lines.append(workout.notes + "\n")
+
+        content = self._write_frontmatter(fm, "\n".join(lines))
+        self._workout_file(workout.date).write_text(content)
+
+    def load_workout(self, workout_date: date) -> Workout | None:
+        path = self._workout_file(workout_date)
+        if not path.exists():
+            return None
+
+        content = path.read_text()
+        fm, body = self._parse_frontmatter(content)
+
+        workout = Workout(
+            date=workout_date,
+            split_day=fm.get("split"),
+            duration_min=fm.get("duration_min"),
+            completed=fm.get("completed", True),
+            notes="",
+        )
+
+        current_exercise: Exercise | None = None
+        in_exercises = False
+
+        for line in body.splitlines():
+            if line.startswith("## Exercises"):
+                in_exercises = True
+                continue
+            if line.startswith("## Notes"):
+                in_exercises = False
+                continue
+
+            if in_exercises:
+                if line.startswith("### "):
+                    if current_exercise:
+                        workout.exercises.append(current_exercise)
+                    name = line[4:].strip()
+                    current_exercise = Exercise(name=name, order=len(workout.exercises))
+                elif line.startswith("| ") and "Weight" not in line and "-----" not in line:
+                    if current_exercise:
+                        parts = [p.strip() for p in line.split("|")[1:-1]]
+                        if len(parts) >= 3:
+                            try:
+                                set_num = int(parts[0])
+                                weight = float(parts[1])
+                                reps = int(parts[2])
+                                rpe = float(parts[3]) if len(parts) > 3 and parts[3] else None
+                                is_warmup = "(warmup)" in line
+                                current_exercise.sets.append(Set(
+                                    weight=weight,
+                                    reps=reps,
+                                    rpe=rpe,
+                                    is_warmup=is_warmup,
+                                    set_number=set_num,
+                                ))
+                            except (ValueError, IndexError):
+                                pass
+
+        if current_exercise:
+            workout.exercises.append(current_exercise)
+
+        notes_match = re.search(r"## Notes\n(.*)", body, re.DOTALL)
+        if notes_match:
+            workout.notes = notes_match.group(1).strip()
+
+        return workout
+
+    def list_workout_dates(self) -> list[date]:
+        dates = []
+        for path in self.config.workouts_path.glob("*.md"):
+            try:
+                d = date.fromisoformat(path.stem)
+                dates.append(d)
+            except ValueError:
+                pass
+        return sorted(dates)
+
+    def save_goal(self, goal: Goal) -> None:
+        self.config.goals_path.mkdir(parents=True, exist_ok=True)
+
+        fm = {
+            "name": goal.name,
+            "target_date": goal.target_date.isoformat(),
+            "metric": goal.metric.value,
+            "target_value": goal.target_value,
+            "current_value": goal.current_value,
+            "exercise_name": goal.exercise_name,
+            "created_date": goal.created_date.isoformat(),
+        }
+
+        body = f"""# {goal.name}
+
+**Target:** {goal.target_value} {goal.metric.value} by {goal.target_date.isoformat()}
+**Current:** {goal.current_value}
+**Progress:** {goal.progress_pct:.1f}%
+**Days Remaining:** {goal.days_remaining}
+
+{goal.notes}
+"""
+
+        content = self._write_frontmatter(fm, body)
+        self._goal_file(goal).write_text(content)
+
+    def load_goals(self) -> list[Goal]:
+        goals = []
+        for path in self.config.goals_path.glob("*.md"):
+            content = path.read_text()
+            fm, body = self._parse_frontmatter(content)
+            try:
+                goal = Goal(
+                    name=fm.get("name", path.stem),
+                    target_date=date.fromisoformat(fm.get("target_date", date.today().isoformat())),
+                    metric=GoalMetric(fm.get("metric", "weight")),
+                    target_value=fm.get("target_value", 0.0),
+                    current_value=fm.get("current_value", 0.0),
+                    exercise_name=fm.get("exercise_name"),
+                    created_date=date.fromisoformat(fm.get("created_date", date.today().isoformat())),
+                    notes=body.strip(),
+                )
+                goals.append(goal)
+            except (ValueError, KeyError):
+                pass
+        return sorted(goals, key=lambda g: g.target_date)
+
+    def delete_goal(self, goal: Goal) -> None:
+        path = self._goal_file(goal)
+        if path.exists():
+            path.unlink()
+
+    def append_monthly_progress(self, workout: Workout) -> None:
+        month_key = workout.date.strftime("%Y-%m")
+        progress_file = self.config.gym_path / f"Progress-{month_key}.md"
+
+        if not progress_file.exists():
+            progress_file.write_text(f"# Progress — {month_key}\n\n| Date | Exercise | Weight | Reps | RPE | Volume |\n|------|----------|--------|------|-----|--------|\n")
+
+        lines = progress_file.read_text().splitlines()
+        for ex in workout.exercises:
+            for s in ex.working_sets:
+                vol = s.volume
+                rpe = f"{s.rpe:.1f}" if s.rpe else ""
+                lines.append(f"| {workout.date.isoformat()} | {ex.name} | {s.weight} | {s.reps} | {rpe} | {vol:.1f} |")
+
+        progress_file.write_text("\n".join(lines) + "\n")
