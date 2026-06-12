@@ -20,12 +20,13 @@ from PyQt6.QtWidgets import (
 
 from ..core.calculator import consistency_streak
 from ..core.config import get_config, save_config
-from ..core.models import Goal, Workout
+from ..core.models import Exercise, Goal, Set, Workout, WorkoutTemplate
 from ..core.storage import VaultStorage
 from .calendar_widget import CalendarWidget
 from .exercise_dialog import ExerciseLibraryDialog
 from .goal_dialog import GoalDialog
 from .progress_chart import ProgressChartWidget
+from .template_dialog import SaveTemplateDialog, TemplateDialog
 from .theme import FONT_DISPLAY, get_stylesheet
 from .workout_dialog import WorkoutDialog
 
@@ -356,6 +357,13 @@ class MainWindow(QMainWindow):
         library_action = QAction("Exercise Library...", self)
         library_action.triggered.connect(self._manage_exercise_library)
         workout_menu.addAction(library_action)
+
+        workout_menu.addSeparator()
+        load_template_action = QAction("Load Template...", self)
+        load_template_action.setShortcut(QKeySequence("Ctrl+L"))
+        load_template_action.triggered.connect(self._load_template)
+        workout_menu.addAction(load_template_action)
+
         workout_menu.addSeparator()
         delete_action = QAction("Delete Selected", self)
         delete_action.setShortcut(QKeySequence("Ctrl+D"))
@@ -422,6 +430,11 @@ class MainWindow(QMainWindow):
             edit_btn = QPushButton("Edit Workout")
             edit_btn.clicked.connect(lambda: self._log_workout(selected))
             btn_row.addWidget(edit_btn)
+
+            template_btn = QPushButton("Save as Template")
+            template_btn.setObjectName("goalButton")
+            template_btn.clicked.connect(lambda: self._save_as_template(existing))
+            btn_row.addWidget(template_btn)
 
             delete_btn = QPushButton("Delete")
             delete_btn.setObjectName("dangerButton")
@@ -569,6 +582,69 @@ class MainWindow(QMainWindow):
             self._update_goals_panel()
             self._chart.set_data(self._workouts, self._goals)
             self._status_bar.showMessage(f"Deleted: {goal.name}", 5000)
+
+    def _load_template(self) -> None:
+        dialog = TemplateDialog(self._storage, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            template = dialog.get_template()
+            if template:
+                selected = self._calendar.selected_date
+                existing = next((w for w in self._workouts if w.date == selected), None)
+                w_dialog = WorkoutDialog(
+                    selected,
+                    existing=existing,
+                    template=template,
+                    exercise_library=self._exercise_library,
+                    units=self._config.units,
+                    parent=self,
+                )
+                if w_dialog.exec() == QDialog.DialogCode.Accepted:
+                    workout = w_dialog.get_workout()
+                    if workout:
+                        self._storage.save_workout(workout)
+                        self._storage.append_monthly_progress(workout)
+                        if existing:
+                            self._workouts.remove(existing)
+                        self._workouts.append(workout)
+                        self._workouts.sort(key=lambda w: w.date)
+                        self._calendar.set_workout_dates(
+                            self._storage.list_workout_dates()
+                        )
+                        self._update_stats()
+                        self._update_workout_panel()
+                        self._chart.set_data(self._workouts, self._goals)
+                        self._status_bar.showMessage(
+                            f"Loaded template: {template.name}", 5000
+                        )
+
+    def _save_as_template(self, workout: Workout) -> None:
+        template = WorkoutTemplate(
+            name=f"{workout.split_day or 'Workout'} — {workout.date.strftime('%b %d')}",
+            exercises=[
+                Exercise(
+                    name=e.name,
+                    order=i,
+                    sets=[
+                        Set(
+                            weight=0,
+                            reps=s.reps,
+                            rpe=7.0,
+                            is_warmup=s.is_warmup,
+                            set_number=j + 1,
+                        )
+                        for j, s in enumerate(e.sets)
+                    ],
+                )
+                for i, e in enumerate(workout.exercises)
+            ],
+            split_day=workout.split_day,
+            notes=workout.notes,
+        )
+        dialog = SaveTemplateDialog(template, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            updated = dialog.get_template()
+            self._storage.save_template(updated)
+            self._status_bar.showMessage(f"Template saved: {updated.name}", 5000)
 
     def _manage_exercise_library(self) -> None:
         dialog = ExerciseLibraryDialog(self._exercise_library, parent=self)

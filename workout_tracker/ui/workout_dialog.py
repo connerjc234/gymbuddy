@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..core.models import Exercise, Set, Workout
+from ..core.models import Exercise, Set, Workout, WorkoutTemplate
 from .theme import FONT_BODY, FONT_DISPLAY
 
 DEFAULT_EXERCISES = [
@@ -131,6 +131,7 @@ class WorkoutDialog(QDialog):
         self,
         workout_date: date,
         existing: Workout | None = None,
+        template: WorkoutTemplate | None = None,
         exercise_library: list[str] | None = None,
         units: str = "metric",
         parent: QWidget | None = None,
@@ -144,6 +145,8 @@ class WorkoutDialog(QDialog):
         self._setup_ui()
         if existing:
             self._load_workout(existing)
+        elif template:
+            self._load_template(template)
 
     def _setup_ui(self) -> None:
         self.setWindowTitle(f"Workout - {self._workout_date.isoformat()}")
@@ -232,6 +235,8 @@ class WorkoutDialog(QDialog):
         btn_layout.addWidget(save_btn)
         layout.addLayout(btn_layout)
 
+        # Load Template via Ctrl+L from main window
+
     def _on_split_changed(self, split: str) -> None:
         if not split:
             return
@@ -264,6 +269,15 @@ class WorkoutDialog(QDialog):
             self._duration_spin.setValue(workout.duration_min)
         self._notes_edit.setText(workout.notes)
         for ex in workout.exercises:
+            self._exercises_widget.add_exercise(ex)
+
+    def _load_template(self, template: WorkoutTemplate) -> None:
+        if template.split_day:
+            idx = self._split_combo.findText(template.split_day)
+            if idx >= 0:
+                self._split_combo.setCurrentIndex(idx)
+        self._notes_edit.setText(template.notes)
+        for ex in template.exercises:
             self._exercises_widget.add_exercise(ex)
 
     def _save(self) -> None:

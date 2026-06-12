@@ -120,6 +120,43 @@ class Goal:
 
 
 @dataclass
+class WorkoutTemplate:
+    name: str
+    exercises: list[Exercise] = field(default_factory=list)
+    split_day: str | None = None
+    notes: str = ""
+    template_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+
+    @property
+    def exercise_count(self) -> int:
+        return len(self.exercises)
+
+    def to_workout(self, workout_date: date) -> Workout:
+        return Workout(
+            date=workout_date,
+            exercises=[
+                Exercise(
+                    name=e.name,
+                    order=i,
+                    sets=[
+                        Set(
+                            weight=0,
+                            reps=s.reps,
+                            rpe=s.rpe,
+                            is_warmup=s.is_warmup,
+                            set_number=s.set_number,
+                        )
+                        for s in e.sets
+                    ],
+                )
+                for i, e in enumerate(self.exercises)
+            ],
+            split_day=self.split_day,
+            notes=self.notes,
+        )
+
+
+@dataclass
 class UserProfile:
     name: str = "User"
     unit_system: UnitSystem = UnitSystem.METRIC

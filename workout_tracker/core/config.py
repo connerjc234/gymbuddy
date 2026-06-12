@@ -27,9 +27,14 @@ class Config:
     def goals_path(self) -> Path:
         return self.gym_path / "Goals"
 
+    @property
+    def templates_path(self) -> Path:
+        return self.gym_path / "Templates"
+
     def ensure_dirs(self) -> None:
         self.workouts_path.mkdir(parents=True, exist_ok=True)
         self.goals_path.mkdir(parents=True, exist_ok=True)
+        self.templates_path.mkdir(parents=True, exist_ok=True)
 
 
 CONFIG_FILE = Path.home() / ".config" / "workout-tracker" / "config.json"
