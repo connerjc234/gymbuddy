@@ -22,6 +22,7 @@ class CalendarWidget(QWidget):
         self._goal_dates: set[date] = set()
         self._current_date = date.today()
         self._selected_date = date.today()
+        self.setMinimumWidth(280)
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -29,26 +30,27 @@ class CalendarWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
-        # Navigation
         nav = QHBoxLayout()
         self._prev_btn = QPushButton("\u25c0")
         self._prev_btn.setFixedSize(32, 30)
         self._prev_btn.setStyleSheet(
-            "font-size: 14px; border: none; color: #7a7265; background: transparent;"
+            "font-size: 14px; border: none; color: #7a7265; background: transparent; border-radius: 4px;"
         )
         self._prev_btn.clicked.connect(self._prev_month)
 
         self._month_label = QLabel()
         self._month_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._month_label.setStyleSheet(
-            f"font-family: '{FONT_DISPLAY}'; font-weight: 600; font-size: 15px; letter-spacing: 0.5px; text-transform: uppercase; color: #1a1612; padding: 4px 0;"
+            f"font-family: '{FONT_DISPLAY}'; font-weight: 600; font-size: 15px; "
+            f"letter-spacing: 0.5px; text-transform: uppercase; color: #1a1612; padding: 4px 0;"
         )
         nav.addWidget(self._prev_btn)
         nav.addWidget(self._month_label, 1)
+
         self._next_btn = QPushButton("\u25b6")
         self._next_btn.setFixedSize(32, 30)
         self._next_btn.setStyleSheet(
-            "font-size: 14px; border: none; color: #7a7265; background: transparent;"
+            "font-size: 14px; border: none; color: #7a7265; background: transparent; border-radius: 4px;"
         )
         self._next_btn.clicked.connect(self._next_month)
         nav.addWidget(self._next_btn)
@@ -57,6 +59,13 @@ class CalendarWidget(QWidget):
         self._grid = QGridLayout()
         self._grid.setSpacing(2)
         layout.addLayout(self._grid)
+
+        self._legend = QLabel()
+        self._legend.setStyleSheet(
+            "color: #a39b8e; font-size: 9px; padding: 2px 0 0 0;"
+        )
+        layout.addWidget(self._legend)
+
         self._update_calendar()
 
     def _update_calendar(self) -> None:
@@ -69,7 +78,8 @@ class CalendarWidget(QWidget):
             label = QLabel(day)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setStyleSheet(
-                f"font-family: '{FONT_DISPLAY}'; font-weight: 600; font-size: 10px; color: #a39b8e; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px;"
+                f"font-family: '{FONT_DISPLAY}'; font-weight: 600; font-size: 10px; "
+                f"color: #a39b8e; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px 0;"
             )
             self._grid.addWidget(label, 0, i)
 
@@ -81,16 +91,16 @@ class CalendarWidget(QWidget):
                 self._current_date.year, self._current_date.month + 1, 1
             ) - timedelta(days=1)
 
-        start_col = first_day.weekday()  # Monday=0
+        start_col = first_day.weekday()
         row = 1
         col = start_col
+        today = date.today()
 
         for day_num in range(1, last_day.day + 1):
             d = date(self._current_date.year, self._current_date.month, day_num)
             btn = DayButton(str(day_num), d)
-            btn.setFixedSize(36, 32)
-            btn.setStyleSheet(self._day_style(d))
-
+            btn.setFixedSize(36, 34)
+            btn.setStyleSheet(self._day_style(d, today))
             btn.clicked.connect(lambda checked=False, dt=d: self._on_day_clicked(dt))
             self._grid.addWidget(btn, row, col)
 
@@ -99,8 +109,10 @@ class CalendarWidget(QWidget):
                 col = 0
                 row += 1
 
-    def _day_style(self, d: date) -> str:
-        is_today = d == date.today()
+        self._update_legend()
+
+    def _day_style(self, d: date, today: date) -> str:
+        is_today = d == today
         is_selected = d == self._selected_date
         has_workout = d in self._workout_dates
         has_goal = d in self._goal_dates
@@ -109,23 +121,32 @@ class CalendarWidget(QWidget):
             bg = "#d64550"
             color = "#ffffff"
             border = "none"
+            fw = "700"
+        elif has_workout and has_goal:
+            bg = "#f8f3e8"
+            color = "#1a1612"
+            border = "1.5px solid #c4a35a"
+            fw = "600"
+        elif has_goal:
+            bg = "#f8f3e8"
+            color = "#1a1612"
+            border = "1.5px solid #e3dcc8"
+            fw = "600"
+        elif has_workout:
+            bg = "#f0f5ee"
+            color = "#1a1612"
+            border = "1.5px solid #cde0d0"
+            fw = "600"
         elif is_today:
             bg = "#ffffff"
             color = "#1a1612"
             border = "1.5px solid #d64550"
+            fw = "600"
         else:
             bg = "transparent"
-            color = "#7a7265"
+            color = "#4a4440"
             border = "1.5px solid transparent"
-
-        if has_workout and has_goal:
-            border = "1.5px solid #c4a35a"
-        elif has_goal:
-            border = "1.5px solid #c4a35a"
-        elif has_workout and not is_selected:
-            border = "1.5px solid #d9d3c8"
-
-        fw = "600" if (is_today or is_selected) else "400"
+            fw = "500"
 
         return f"""
             QPushButton {{
@@ -133,15 +154,29 @@ class CalendarWidget(QWidget):
                 color: {color};
                 border: {border};
                 border-radius: 6px;
+                padding: 0;
                 font-family: '{FONT_DISPLAY}';
                 font-size: 12px;
                 font-weight: {fw};
             }}
             QPushButton:hover {{
-                background-color: #ece8e0;
-                color: #1a1612;
+                background-color: {"#b73842" if is_selected else "#ece8e0"};
+                color: {"#ffffff" if is_selected else "#1a1612"};
             }}
         """
+
+    def _update_legend(self) -> None:
+        parts = []
+        if self._workout_dates:
+            parts.append('<span style="color: #4a7c5b;">\u25cf</span> workout')
+        if self._goal_dates:
+            parts.append('<span style="color: #c4a35a;">\u25cf</span> goal')
+        if parts:
+            self._legend.setText("  ".join(parts))
+            self._legend.setTextFormat(Qt.TextFormat.RichText)
+            self._legend.show()
+        else:
+            self._legend.hide()
 
     def _on_day_clicked(self, d: date) -> None:
         self._selected_date = d

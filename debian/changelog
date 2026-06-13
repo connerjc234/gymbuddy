@@ -1,0 +1,9 @@
+gymbuddy (0.1.0-1) unstable; urgency=medium
+
+  * Initial release of GymBuddy workout tracker
+  * Workout logging with Obsidian vault integration
+  * Goal tracking with deadlines
+  * AI Coach with OpenAI/Ollama support
+  * Progress charts and analytics
+
+ -- Conner <conner@example.com>  Thu, 13 Jun 2026 00:00:00 +0000

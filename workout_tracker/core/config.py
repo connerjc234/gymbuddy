@@ -8,12 +8,16 @@ from typing import Literal
 
 @dataclass
 class Config:
-    vault_path: str = "/home/conner/Documents/ObsidianVault"
+    vault_path: str = str(Path.home() / "Documents" / "ObsidianVault")
     units: Literal["metric", "imperial"] = "metric"
     default_split: str = "PPL"
     theme: Literal["warm", "dark", "light"] = "warm"
     ai_enabled: bool = False
     ai_provider: Literal["openai", "ollama", "local"] = "openai"
+    ai_base_url: str = "https://api.openai.com/v1"
+    ai_model: str = "gpt-4o-mini"
+    ai_api_key: str = ""
+    ai_notes_folder: str = "AI-Notes"
 
     @property
     def gym_path(self) -> Path:
@@ -31,10 +35,15 @@ class Config:
     def templates_path(self) -> Path:
         return self.gym_path / "Templates"
 
+    @property
+    def ai_notes_path(self) -> Path:
+        return self.gym_path / self.ai_notes_folder
+
     def ensure_dirs(self) -> None:
         self.workouts_path.mkdir(parents=True, exist_ok=True)
         self.goals_path.mkdir(parents=True, exist_ok=True)
         self.templates_path.mkdir(parents=True, exist_ok=True)
+        self.ai_notes_path.mkdir(parents=True, exist_ok=True)
 
 
 CONFIG_FILE = Path.home() / ".config" / "workout-tracker" / "config.json"

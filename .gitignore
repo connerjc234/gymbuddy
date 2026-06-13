@@ -29,5 +29,9 @@ Thumbs.db
 # Config (local overrides)
 config.local.json
 
+# AppImage (distribute via GitHub Releases)
+appimage/*.AppImage
+appimage/AppDir/
+
 # Logs
 *.log

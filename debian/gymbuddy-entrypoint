@@ -1,0 +1,8 @@
+#!/bin/sh
+# GymBuddy entry point for system installation
+
+# Ensure config directory exists
+mkdir -p "$HOME/.config/workout-tracker"
+
+# Run the application
+exec python3 -m workout_tracker.main "$@"

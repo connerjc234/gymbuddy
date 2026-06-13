@@ -1,0 +1,20 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --buildsystem=pybuild --with python3
+
+override_dh_auto_install:
+	dh_auto_install
+	# Install desktop file
+	install -D -m 644 assets/gymbuddy.desktop debian/gymbuddy/usr/share/applications/gymbuddy.desktop
+	# Install icon
+	install -D -m 644 assets/gymbuddy.svg debian/gymbuddy/usr/share/icons/hicolor/scalable/apps/gymbuddy.svg
+	# Install entry point script
+	install -D -m 755 debian/gymbuddy-entrypoint debian/gymbuddy/usr/bin/gymbuddy
+
+override_dh_install:
+	dh_install
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf build dist *.egg-info

@@ -395,3 +395,32 @@ class VaultStorage:
                 )
 
         progress_file.write_text("\n".join(lines) + "\n")
+
+    def save_ai_note(
+        self, title: str, content: str, tags: list[str] | None = None
+    ) -> Path:
+        """Save an AI-generated note to the vault."""
+        import re
+        from datetime import datetime
+
+        self.config.ai_notes_path.mkdir(parents=True, exist_ok=True)
+
+        safe_title = re.sub(r"[^\w\- ]", "", title).strip().replace(" ", "-")
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        filename = f"{timestamp}-{safe_title}.md"
+        filepath = self.config.ai_notes_path / filename
+
+        fm = {
+            "title": title,
+            "created": datetime.now().isoformat(),
+            "tags": tags or ["ai-coach"],
+        }
+
+        body = f"# {title}\n\n{content}\n"
+
+        if tags:
+            body += f"\n---\n*Tags: {', '.join(tags)}*"
+
+        full_content = f"---\n{yaml.dump(fm, sort_keys=False)}---\n\n{body}\n"
+        filepath.write_text(full_content)
+        return filepath

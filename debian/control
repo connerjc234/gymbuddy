@@ -1,0 +1,23 @@
+Source: gymbuddy
+Section: utils
+Priority: optional
+Maintainer: Conner <conner@example.com>
+Build-Depends: debhelper-compat (= 13), python3-all (>= 3.11), python3-setuptools, python3-wheel, python3-pyqt6, python3-yaml, python3-dateutil, python3-openai
+Standards-Version: 4.6.2
+Homepage: https://github.com/conner/gymbuddy
+Rules-Requires-Root: no
+
+Package: gymbuddy
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}, python3-pyqt6 (>= 6.6), python3-yaml (>= 6.0), python3-dateutil (>= 2.9), python3-openai (>= 1.30)
+Description: Workout tracker with Obsidian vault integration
+ GymBuddy is a desktop application for logging workouts with direct
+ Obsidian vault markdown integration. Features include:
+  * Daily workout logging (exercises, sets, reps, weight, RPE)
+  * Goal tracking with target dates
+  * Split-based exercise presets (Push/Pull/Legs/Upper/Lower/Full Body)
+  * Exercise library management
+  * Progress charts and analytics
+  * AI Coach integration (OpenAI/Ollama compatible)
+  * Catppuccin Mocha dark theme
+  * Configurable units (metric/imperial)

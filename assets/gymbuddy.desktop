@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=GymBuddy
+GenericName=Workout Tracker
+Comment=Track workouts with Obsidian vault integration
+Exec=gymbuddy
+Icon=gymbuddy
+Terminal=false
+Categories=Utility;Sports;X-Fitness;
+StartupNotify=true
+Keywords=fitness;workout;gym;tracking;

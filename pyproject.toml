@@ -5,9 +5,10 @@ description = "Workout tracker with Obsidian vault integration"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "PyQt6>=6.6",
+    "PyQt6>=6.11",
     "pyyaml>=6.0",
     "python-dateutil>=2.9",
+    "openai>=1.30",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +22,11 @@ dev = [
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["workout_tracker*"]
+exclude = ["assets*", "tests*", "debian*", "rpmbuild*"]
 
 [tool.ruff]
 line-length = 88

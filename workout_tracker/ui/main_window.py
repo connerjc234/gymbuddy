@@ -22,6 +22,7 @@ from ..core.calculator import consistency_streak
 from ..core.config import get_config, save_config
 from ..core.models import Exercise, Goal, Set, Workout, WorkoutTemplate
 from ..core.storage import VaultStorage
+from .ai_chat_dialog import AIChatDialog
 from .calendar_widget import CalendarWidget
 from .exercise_dialog import ExerciseLibraryDialog
 from .goal_dialog import GoalDialog
@@ -279,12 +280,16 @@ class MainWindow(QMainWindow):
         btn_layout.setSpacing(6)
         new_workout_btn = QPushButton("+ New Workout")
         new_workout_btn.setObjectName("primaryButton")
-        new_workout_btn.clicked.connect(self._log_workout)
+        new_workout_btn.clicked.connect(lambda _: self._log_workout())
         btn_layout.addWidget(new_workout_btn)
         new_goal_btn = QPushButton("+ New Goal")
         new_goal_btn.setObjectName("goalButton")
         new_goal_btn.clicked.connect(self._new_goal)
         btn_layout.addWidget(new_goal_btn)
+        settings_btn = QPushButton("⚙ Settings")
+        settings_btn.setObjectName("secondaryButton")
+        settings_btn.clicked.connect(self._show_settings)
+        btn_layout.addWidget(settings_btn)
         left_layout.addLayout(btn_layout)
 
         left_layout.addStretch()
@@ -363,6 +368,12 @@ class MainWindow(QMainWindow):
         load_template_action.setShortcut(QKeySequence("Ctrl+L"))
         load_template_action.triggered.connect(self._load_template)
         workout_menu.addAction(load_template_action)
+
+        workout_menu.addSeparator()
+        ai_chat_action = QAction("AI Coach...", self)
+        ai_chat_action.setShortcut(QKeySequence("Ctrl+I"))
+        ai_chat_action.triggered.connect(self._open_ai_chat)
+        workout_menu.addAction(ai_chat_action)
 
         workout_menu.addSeparator()
         delete_action = QAction("Delete Selected", self)
@@ -655,11 +666,26 @@ class MainWindow(QMainWindow):
                 f"{len(self._exercise_library)} exercises saved", 5000
             )
 
+    def _open_ai_chat(self) -> None:
+        config = get_config()
+        if not config.ai_enabled:
+            from PyQt6.QtWidgets import QMessageBox
+
+            QMessageBox.information(
+                self,
+                "AI Not Enabled",
+                "Enable AI in Settings to use the coach.",
+            )
+            return
+        dialog = AIChatDialog(self._workouts, self._goals, parent=self)
+        dialog.exec()
+
     def _go_to_today(self) -> None:
         self._calendar.go_to_date(date.today())
 
     def _show_settings(self) -> None:
         from PyQt6.QtWidgets import (
+            QCheckBox,
             QComboBox,
             QDialog,
             QDialogButtonBox,
@@ -669,17 +695,62 @@ class MainWindow(QMainWindow):
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Settings")
-        dialog.setMinimumWidth(400)
+        dialog.setMinimumWidth(480)
 
         layout = QFormLayout(dialog)
+
         vault_path = QLineEdit(self._config.vault_path)
         layout.addRow("Vault Path:", vault_path)
+
         units = QComboBox()
         units.addItems(["metric", "imperial"])
         units.setCurrentText(self._config.units)
         layout.addRow("Units:", units)
+
         split = QLineEdit(self._config.default_split)
         layout.addRow("Default Split:", split)
+
+        layout.addRow(QLabel(""))  # spacer
+
+        ai_enabled = QCheckBox("Enable AI Coach")
+        ai_enabled.setChecked(self._config.ai_enabled)
+        layout.addRow(ai_enabled)
+
+        ai_provider = QComboBox()
+        ai_provider.addItems(["openai", "ollama", "local"])
+        ai_provider.setCurrentText(self._config.ai_provider)
+        ai_provider.setEnabled(self._config.ai_enabled)
+        layout.addRow("Provider:", ai_provider)
+
+        ai_base_url = QLineEdit(self._config.ai_base_url)
+        ai_base_url.setPlaceholderText("https://api.openai.com/v1")
+        ai_base_url.setEnabled(self._config.ai_enabled)
+        layout.addRow("Base URL:", ai_base_url)
+
+        ai_model = QLineEdit(self._config.ai_model)
+        ai_model.setPlaceholderText("gpt-4o-mini")
+        ai_model.setEnabled(self._config.ai_enabled)
+        layout.addRow("Model:", ai_model)
+
+        ai_api_key = QLineEdit(self._config.ai_api_key)
+        ai_api_key.setEchoMode(QLineEdit.EchoMode.Password)
+        ai_api_key.setPlaceholderText("API key (or leave blank for Ollama)")
+        ai_api_key.setEnabled(self._config.ai_enabled)
+        layout.addRow("API Key:", ai_key := ai_api_key)
+
+        ai_notes_folder = QLineEdit(self._config.ai_notes_folder)
+        ai_notes_folder.setPlaceholderText("AI-Notes")
+        ai_notes_folder.setEnabled(self._config.ai_enabled)
+        layout.addRow("Notes Folder:", ai_notes_folder)
+
+        def _toggle_ai_fields(checked: bool) -> None:
+            ai_provider.setEnabled(checked)
+            ai_base_url.setEnabled(checked)
+            ai_model.setEnabled(checked)
+            ai_key.setEnabled(checked)
+            ai_notes_folder.setEnabled(checked)
+
+        ai_enabled.toggled.connect(_toggle_ai_fields)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -694,6 +765,14 @@ class MainWindow(QMainWindow):
                 Literal["metric", "imperial"], units.currentText()
             )
             self._config.default_split = split.text()
+            self._config.ai_enabled = ai_enabled.isChecked()
+            self._config.ai_provider = cast(
+                Literal["openai", "ollama", "local"], ai_provider.currentText()
+            )
+            self._config.ai_base_url = ai_base_url.text()
+            self._config.ai_model = ai_model.text()
+            self._config.ai_api_key = ai_api_key.text()
+            self._config.ai_notes_folder = ai_notes_folder.text()
             save_config(self._config)
             self._storage = VaultStorage()
             self._load_data()

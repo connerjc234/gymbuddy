@@ -46,6 +46,23 @@ FONT_DISPLAY = "Oswald"
 FONT_BODY = "Source Sans 3"
 FONT_ACCENT = "Playfair Display"
 
+# Color constants for consistent theming
+BG_WARM = "#f5f2ec"
+BG_CARD = "#ffffff"
+BG_ALT = "#ece8e0"
+TEXT_PRIMARY = "#1a1612"
+TEXT_SECONDARY = "#7a7265"
+TEXT_MUTED = "#a39b8e"
+ACCENT_TERRACOTTA = "#d64550"
+ACCENT_TERRACOTTA_HOVER = "#b73842"
+ACCENT_TERRACOTTA_SUBTLE = "#fce8e8"
+BORDER_LIGHT = "#e3ddd4"
+BORDER_HOVER = "#c9c0b4"
+ACCENT_GREEN = "#4a7c5b"
+ACCENT_GREEN_BG = "#edf5ef"
+ACCENT_GOLD = "#c4a35a"
+ACCENT_GOLD_BG = "#f8f3e8"
+
 
 ROOT = """
 QMainWindow, QDialog, QWidget {
@@ -160,6 +177,17 @@ QPushButton#goalButton {{
 QPushButton#goalButton:hover {{
     background-color: #edf5ef;
     border-color: #4a7c5b;
+}}
+
+QPushButton#secondaryButton {{
+    color: #7a7265;
+    border-color: #e3ddd4;
+    font-weight: 600;
+}}
+
+QPushButton#secondaryButton:hover {{
+    background-color: #ece8e0;
+    border-color: #c9c0b4;
 }}
 
 /* ── LABELS ── */
