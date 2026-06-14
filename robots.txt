@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://connerjc234.github.io/gymbuddy/sitemap.xml
