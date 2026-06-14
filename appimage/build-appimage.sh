@@ -1,103 +1,145 @@
 #!/bin/bash
-# Build AppImage for GymBuddy
-
+# Build a distribution-ready AppImage for GymBuddy
+# Bundles portable Python (python-build-standalone) + all deps
 set -e
 
-VERSION="0.1.0"
+VERSION="0.2.0"
+PYTHON_VERSION="3.11.15"
+PBS_RELEASE="20260610"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APPIMAGE_DIR="${PROJECT_DIR}/appimage/AppDir"
 BUILD_DIR="${PROJECT_DIR}/appimage/build"
 
+PBS_URL="https://github.com/astral-sh/python-build-standalone/releases/download/${PBS_RELEASE}/cpython-${PYTHON_VERSION}+${PBS_RELEASE}-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+APPIMAGETOOL_URL="https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+
 echo "=== Building GymBuddy AppImage v${VERSION} ==="
 
-# Clean previous builds
+# Clean
 rm -rf "${APPIMAGE_DIR}" "${BUILD_DIR}"
-mkdir -p "${APPIMAGE_DIR}/usr/bin"
-mkdir -p "${APPIMAGE_DIR}/usr/lib/python3/site-packages"
+mkdir -p "${BUILD_DIR}"
 mkdir -p "${APPIMAGE_DIR}/usr/share/applications"
 mkdir -p "${APPIMAGE_DIR}/usr/share/icons/hicolor/scalable/apps"
-mkdir -p "${APPIMAGE_DIR}/usr/etc/fonts"
-mkdir -p "${BUILD_DIR}"
+mkdir -p "${APPIMAGE_DIR}/usr/share/fonts/gymbuddy"
 
-# Copy source code
-echo "Copying source..."
-cp -r "${PROJECT_DIR}/workout_tracker" "${APPIMAGE_DIR}/usr/lib/python3/site-packages/"
+# ── 1. Download & extract portable Python ──
+PBS_CACHE="${BUILD_DIR}/python-build.tar.gz"
+if [ ! -f "${PBS_CACHE}" ]; then
+    echo "Downloading portable Python ${PYTHON_VERSION}..."
+    curl -L "${PBS_URL}" -o "${PBS_CACHE}"
+fi
+echo "Extracting Python ${PYTHON_VERSION}..."
+tar xzf "${PBS_CACHE}" -C "${BUILD_DIR}"
+# tarball root is "python/", move contents into AppDir usr/
+cp -r "${BUILD_DIR}/python/"* "${APPIMAGE_DIR}/usr/"
+rm -rf "${BUILD_DIR}/python"
 
-# Install dependencies with pip into AppDir
-echo "Installing dependencies..."
-pip install --target="${APPIMAGE_DIR}/usr/lib/python3/site-packages" \
-    --no-compile \
-    --no-deps \
-    PyQt6==6.6.1 \
+BUNDLED_PYTHON="${APPIMAGE_DIR}/usr/bin/python3"
+echo "  Bundled: $(${BUNDLED_PYTHON} --version 2>&1)"
+
+# ── 2. Install Python dependencies via bundled pip ──
+echo "Installing dependencies into bundled Python..."
+"${BUNDLED_PYTHON}" -m pip install --no-compile --no-cache-dir \
+    PyQt6==6.11.0 \
     PyYAML==6.0.1 \
     python-dateutil==2.9.0.post0 \
-    openai==1.30.1 \
-    2>/dev/null || echo "Some deps may need manual handling"
+    openai==1.30.1
 
-# Copy PyQt6 from system (it has binary components)
-echo "Copying PyQt6 binaries..."
-PYTHON_SITE=$(python3 -c "import site; print(site.getsitepackages()[0])")
-if [ -d "${PYTHON_SITE}/PyQt6" ]; then
-    cp -r "${PYTHON_SITE}/PyQt6" "${APPIMAGE_DIR}/usr/lib/python3/site-packages/"
-fi
-if [ -d "${PYTHON_SITE}/PyQt6.Qt6" ]; then
-    cp -r "${PYTHON_SITE}/PyQt6.Qt6" "${APPIMAGE_DIR}/usr/lib/python3/site-packages/"
-fi
+# ── 3. Install GymBuddy source ──
+echo "Installing GymBuddy..."
+SITE_PACKAGES=$(find "${APPIMAGE_DIR}/usr/lib" -name "site-packages" -type d | head -1)
+cp -r "${PROJECT_DIR}/workout_tracker" "${SITE_PACKAGES}/"
 
-# Copy Qt6 libraries
+# ── 4. Copy Qt6 libraries to usr/lib for LD_LIBRARY_PATH ──
 echo "Copying Qt6 libraries..."
-mkdir -p "${APPIMAGE_DIR}/usr/lib/x86_64-linux-gnu"
-QT_LIB_DIRS="/usr/lib64 /usr/lib/x86_64-linux-gnu /usr/lib"
-for qt_dir in ${QT_LIB_DIRS}; do
-    if [ -d "${qt_dir}" ]; then
-        for lib in Qt6Core Qt6Gui Qt6Widgets Qt6Network Qt6DBus Qt6OpenGL Qt6PrintSupport Qt6Svg Qt6Qml Qt6Quick Qt6QmlModels Qt6QmlWorkerScript; do
-            find "${qt_dir}" -maxdepth 1 -name "lib${lib}.so*" -exec cp -L {} "${APPIMAGE_DIR}/usr/lib/x86_64-linux-gnu/" \; 2>/dev/null || true
-        done
-    fi
-done
+QT_LIB_DIR="${SITE_PACKAGES}/PyQt6/Qt6/lib"
+if [ -d "${QT_LIB_DIR}" ]; then
+    mkdir -p "${APPIMAGE_DIR}/usr/lib"
+    cp -r "${QT_LIB_DIR}/"* "${APPIMAGE_DIR}/usr/lib/"
+fi
 
-# Also copy libstdc++, libgcc, etc. that Qt depends on
-for lib in libstdc++.so.6 libgcc_s.so.1 libm.so.6 libc.so.6 libdl.so.2 libpthread.so.0 librt.so.1; do
-    find /lib64 /lib /usr/lib64 /usr/lib -maxdepth 1 -name "${lib}*" -exec cp -L {} "${APPIMAGE_DIR}/usr/lib/x86_64-linux-gnu/" \; 2>/dev/null || true
-done
-
-# Copy desktop file and icon
+# ── 5. Copy desktop entry and icon ──
 echo "Copying desktop entry and icon..."
-cp "${PROJECT_DIR}/assets/gymbuddy.desktop" "${APPIMAGE_DIR}/gymbuddy.desktop"
 cp "${PROJECT_DIR}/assets/gymbuddy.desktop" "${APPIMAGE_DIR}/usr/share/applications/"
+cp "${PROJECT_DIR}/assets/gymbuddy.desktop" "${APPIMAGE_DIR}/gymbuddy.desktop"
 cp "${PROJECT_DIR}/assets/gymbuddy.svg" "${APPIMAGE_DIR}/usr/share/icons/hicolor/scalable/apps/gymbuddy.svg"
 cp "${PROJECT_DIR}/assets/gymbuddy.svg" "${APPIMAGE_DIR}/gymbuddy.svg"
 
-# Copy AppRun
-cp "${PROJECT_DIR}/appimage/AppRun" "${APPIMAGE_DIR}/AppRun"
+# ── 6. Copy fonts ──
+echo "Copying fonts..."
+cp "${PROJECT_DIR}/assets/fonts/"*.ttf "${APPIMAGE_DIR}/usr/share/fonts/gymbuddy/"
+
+# ── 7. Create AppRun ──
+cat > "${APPIMAGE_DIR}/AppRun" << 'APPRUN'
+#!/bin/sh
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+# Use bundled Python
+PYTHON="${HERE}/usr/bin/python3"
+
+# Point to bundled site-packages
+SITE_PACKAGES=$(find "${HERE}/usr/lib" -name "site-packages" -type d | head -1)
+export PYTHONPATH="${SITE_PACKAGES}:${PYTHONPATH}"
+
+# Qt library path
+export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
+
+# Qt plugin path
+QT_PLUGINS=$(find "${HERE}/usr/lib" -path "*/PyQt6/Qt6/plugins" -type d 2>/dev/null | head -1)
+if [ -n "${QT_PLUGINS}" ]; then
+    export QT_PLUGIN_PATH="${QT_PLUGINS}:${QT_PLUGIN_PATH}"
+fi
+
+# XDG paths
+export XDG_DATA_DIRS="${HERE}/usr/share:${XDG_DATA_DIRS}"
+
+# Create config directory if needed
+mkdir -p "${HOME}/.config/workout-tracker"
+
+# Run
+cd "${HERE}"
+exec "${PYTHON}" -m workout_tracker.main "$@"
+APPRUN
 chmod +x "${APPIMAGE_DIR}/AppRun"
 
-# Create minimal fontconfig
-cat > "${APPIMAGE_DIR}/usr/etc/fonts/fonts.conf" << 'EOF'
-<?xml version="1.0"?>
-<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
-<fontconfig>
-  <dir>/usr/share/fonts</dir>
-  <dir>/usr/local/share/fonts</dir>
-  <dir prefix="xdg">fonts</dir>
-  <cachedir>/var/cache/fontconfig</cachedir>
-  <cachedir prefix="xdg">fontconfig</cachedir>
-</fontconfig>
-EOF
+# ── 8. Strip and clean ──
+echo "Stripping binaries and cleaning..."
+find "${APPIMAGE_DIR}/usr/lib" -name "*.so" -exec strip --strip-unneeded {} \; 2>/dev/null || true
+find "${APPIMAGE_DIR}/usr/bin" -not -name "python3" -exec strip --strip-all {} \; 2>/dev/null || true
+strip --strip-all "${APPIMAGE_DIR}/usr/bin/python3" 2>/dev/null || true
+# Remove unnecessary Python stdlib components
+rm -rf "${APPIMAGE_DIR}/usr/lib/python3.11/test"
+rm -rf "${APPIMAGE_DIR}/usr/lib/python3.11/idlelib"
+rm -rf "${APPIMAGE_DIR}/usr/lib/python3.11/turtledemo"
+rm -rf "${APPIMAGE_DIR}/usr/lib/python3.11/lib2to3"
+rm -rf "${APPIMAGE_DIR}/usr/lib/python3.11/ensurepip"
+rm -rf "${APPIMAGE_DIR}/usr/include"
+rm -rf "${APPIMAGE_DIR}/usr/lib/python3.11/site-packages/pip"
+rm -rf "${APPIMAGE_DIR}/usr/lib/python3.11/site-packages/setuptools"
+rm -rf "${APPIMAGE_DIR}/usr/lib/python3.11/__pycache__"
+find "${APPIMAGE_DIR}" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+find "${APPIMAGE_DIR}" -name "*.pyc" -delete 2>/dev/null || true
 
-# Download appimagetool if not present
+# Remove .dist-info and .egg-info that aren't ours
+find "${APPIMAGE_DIR}/usr/lib/python3.11/site-packages" \
+    -maxdepth 1 \( -name "*.dist-info" -o -name "*.egg-info" \) \
+    ! -name "workout_tracker*" \
+    -exec rm -rf {} + 2>/dev/null || true
+
+# ── 9. Download appimagetool ──
 APPIMAGETOOL="${BUILD_DIR}/appimagetool-x86_64.AppImage"
 if [ ! -f "${APPIMAGETOOL}" ]; then
     echo "Downloading appimagetool..."
-    wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O "${APPIMAGETOOL}"
+    curl -L "${APPIMAGETOOL_URL}" -o "${APPIMAGETOOL}"
     chmod +x "${APPIMAGETOOL}"
 fi
 
-# Build AppImage
+# ── 10. Build AppImage ──
 echo "Building AppImage..."
 cd "${PROJECT_DIR}/appimage"
-ARCH=x86_64 "${APPIMAGETOOL}" AppDir "GymBuddy-${VERSION}-x86_64.AppImage"
+ARCH=x86_64 "${APPIMAGETOOL}" --no-appstream AppDir "GymBuddy-${VERSION}-x86_64.AppImage"
 
 echo ""
 echo "=== AppImage built ==="
 ls -lh "GymBuddy-${VERSION}-x86_64.AppImage"
+echo "File: ${PROJECT_DIR}/appimage/GymBuddy-${VERSION}-x86_64.AppImage"

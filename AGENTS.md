@@ -41,6 +41,9 @@ mypy workout_tracker
 
 # Run app
 python -m workout_tracker.main
+
+# Build distribution AppImage (fully self-contained, portable Python)
+bash appimage/build-appimage.sh
 ```
 
 ## Obsidian Vault Path

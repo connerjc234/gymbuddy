@@ -32,6 +32,7 @@ config.local.json
 # AppImage (distribute via GitHub Releases)
 appimage/*.AppImage
 appimage/AppDir/
+appimage/build/
 
 # Logs
 *.log

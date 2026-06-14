@@ -27,16 +27,24 @@ from PyQt6.QtGui import QFontDatabase
 
 
 def register_fonts() -> None:
+    import os
+
     for name in [
         "Oswald-Variable.ttf",
         "SourceSans3-Variable.ttf",
         "PlayfairDisplay-Variable.ttf",
     ]:
-        path = str(__file__).rsplit("/", 3)[0] + "/.fonts/" + name
-        import os
-
-        home_path = os.path.expanduser(f"~/.fonts/{name}")
-        for p in [path, home_path]:
+        paths: list[str] = [
+            # bundled in AppImage: <AppDir>/usr/share/fonts/gymbuddy/<name>
+            str(__file__).rsplit("/usr/lib/", 1)[0]
+            + "/usr/share/fonts/gymbuddy/"
+            + name,
+            # dev: <project_root>/.fonts/<name>
+            str(__file__).rsplit("/", 3)[0] + "/.fonts/" + name,
+            # user install: ~/.fonts/<name>
+            os.path.expanduser(f"~/.fonts/{name}"),
+        ]
+        for p in paths:
             if os.path.exists(p):
                 QFontDatabase.addApplicationFont(p)
                 break
