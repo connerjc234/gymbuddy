@@ -20,6 +20,17 @@ A premium PyQt6 workout tracker with Obsidian vault integration — warm editori
 
 ## Quick Start
 
+**Portable version** — grab `GymBuddy-*-x86_64.AppImage` from the [Releases page](https://github.com/connerjc234/gymbuddy/releases), make it executable, and run:
+
+```bash
+chmod +x GymBuddy-*.AppImage
+./GymBuddy-*.AppImage
+```
+
+No Python, Qt, or dependencies required — everything is bundled.
+
+**From source:**
+
 ```bash
 ./setup.sh
 source .venv/bin/activate
