@@ -36,6 +36,10 @@ class Config:
         return self.gym_path / "Templates"
 
     @property
+    def supplements_path(self) -> Path:
+        return self.gym_path / "Supplements"
+
+    @property
     def ai_notes_path(self) -> Path:
         return self.gym_path / self.ai_notes_folder
 
@@ -43,6 +47,7 @@ class Config:
         self.workouts_path.mkdir(parents=True, exist_ok=True)
         self.goals_path.mkdir(parents=True, exist_ok=True)
         self.templates_path.mkdir(parents=True, exist_ok=True)
+        self.supplements_path.mkdir(parents=True, exist_ok=True)
         self.ai_notes_path.mkdir(parents=True, exist_ok=True)
 
 

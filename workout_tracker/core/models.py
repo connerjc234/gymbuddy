@@ -2,7 +2,7 @@
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, time
 from enum import StrEnum
 
 
@@ -156,11 +156,67 @@ class WorkoutTemplate:
         )
 
 
+class SupplementFrequency(StrEnum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    WORKOUT_DAYS = "workout_days"
+    CUSTOM = "custom"
+
+
+class SupplementTiming(StrEnum):
+    MORNING = "morning"
+    PRE_WORKOUT = "pre_workout"
+    POST_WORKOUT = "post_workout"
+    EVENING = "evening"
+    WITH_MEAL = "with_meal"
+    BEFORE_BED = "before_bed"
+    CUSTOM = "custom"
+
+
 @dataclass
-class UserProfile:
-    name: str = "User"
-    unit_system: UnitSystem = UnitSystem.METRIC
-    bodyweight: float | None = None
-    height_cm: float | None = None
-    age: int | None = None
-    experience_level: str = "intermediate"
+class Supplement:
+    name: str
+    dosage: str = ""  # e.g., "5g", "2000 IU", "1 scoop"
+    frequency: SupplementFrequency = SupplementFrequency.DAILY
+    timing: SupplementTiming = SupplementTiming.MORNING
+    custom_days: list[int] = field(
+        default_factory=list
+    )  # 0=Monday, 6=Sunday for CUSTOM frequency
+    custom_time: time | None = None  # For CUSTOM timing
+    notes: str = ""
+    enabled: bool = True
+    last_taken: datetime | None = None
+    supplement_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+
+    @property
+    def is_due_today(self) -> bool:
+        """Check if supplement should be taken today based on frequency."""
+        if not self.enabled:
+            return False
+        today = date.today()
+        weekday = today.weekday()
+
+        match self.frequency:
+            case SupplementFrequency.DAILY:
+                return True
+            case SupplementFrequency.WEEKLY:
+                # Default to Monday (0) for weekly
+                return weekday == 0
+            case SupplementFrequency.WORKOUT_DAYS:
+                # This would need workout data - simplified for now
+                return True
+            case SupplementFrequency.CUSTOM:
+                return weekday in self.custom_days
+
+        return False
+
+    @property
+    def is_taken_today(self) -> bool:
+        """Check if supplement was already taken today."""
+        if self.last_taken is None:
+            return False
+        return self.last_taken.date() == date.today()
+
+    def mark_taken(self, taken_time: datetime | None = None) -> None:
+        """Mark supplement as taken."""
+        self.last_taken = taken_time or datetime.now()
