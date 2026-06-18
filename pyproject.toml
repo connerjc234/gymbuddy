@@ -46,4 +46,3 @@ disable_error_code = ["union-attr"]
 
 [tool.pytest.ini_options]
 qt_no_exception_capture = true
-asyncio_mode = "auto"
