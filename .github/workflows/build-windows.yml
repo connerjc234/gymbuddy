@@ -18,6 +18,9 @@ env:
   APP_NAME: "GymBuddy"
   VERSION: ${{ github.event.inputs.version || '0.2.0' }}
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
